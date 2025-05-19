@@ -1,6 +1,7 @@
 package com.mushusax.monkeyfury
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -24,6 +25,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.mushusax.monkeyfury.ui.theme.MonkeyFuryTheme
 import kotlinx.coroutines.launch
+import okhttp3.ResponseBody
+import retrofit2.Call
+import retrofit2.Response
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -42,7 +46,8 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier
                             .padding(padding)
                             .fillMaxSize(),
-                        snackbarHostState
+                        snackbarHostState,
+                        application as MonkeyFuryApplication
                     )
                 }
             }
@@ -52,7 +57,12 @@ class MainActivity : ComponentActivity() {
 
 
 @Composable
-fun LoginComposable(modifier: Modifier, snackbarHostState: SnackbarHostState) {
+fun LoginComposable(
+    modifier: Modifier,
+    snackbarHostState: SnackbarHostState,
+    application: MonkeyFuryApplication
+) {
+
     Column(modifier, verticalArrangement = Arrangement.Center) {
         var enabled by rememberSaveable { mutableStateOf(true) }
         val coroutineScope = rememberCoroutineScope()
@@ -63,8 +73,22 @@ fun LoginComposable(modifier: Modifier, snackbarHostState: SnackbarHostState) {
                     enabled = false
                     snackbarHostState.showSnackbar("Log In Pressed")
                     enabled = true
-                }
 
+                }
+                application.weatherService.getWeather()
+                    .enqueue(object : retrofit2.Callback<ResponseBody> {
+                        override fun onResponse(
+                            p0: Call<ResponseBody>,
+                            p1: Response<ResponseBody>
+                        ) {
+                            Log.d("PTT", "onResponse")
+                        }
+
+                        override fun onFailure(p0: Call<ResponseBody>, p1: Throwable) {
+                            Log.d("PTT", "onFailure")
+                        }
+
+                    })
             },
             modifier = Modifier.fillMaxWidth(),
             enabled = enabled
