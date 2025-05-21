@@ -2,6 +2,8 @@ package com.mushusax.monkeyfury
 
 import android.os.Bundle
 import android.util.Log
+import android.util.MutableBoolean
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -16,6 +18,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -64,36 +67,67 @@ fun LoginComposable(
 ) {
 
     Column(modifier, verticalArrangement = Arrangement.Center) {
-        var enabled by rememberSaveable { mutableStateOf(true) }
+        var enableLogin by rememberSaveable { mutableStateOf(true) }
+        var enableLogout by rememberSaveable { mutableStateOf(true) }
         val coroutineScope = rememberCoroutineScope()
 
         ElevatedButton(
             onClick = {
-                coroutineScope.launch {
-                    enabled = false
-                    snackbarHostState.showSnackbar("Log In Pressed")
-                    enabled = true
-
-                }
-                application.weatherService.getWeather()
+                enableLogin = false
+                application.api.login()
                     .enqueue(object : retrofit2.Callback<ResponseBody> {
                         override fun onResponse(
                             p0: Call<ResponseBody>,
                             p1: Response<ResponseBody>
                         ) {
-                            Log.d("PTT", "onResponse")
+                            coroutineScope.launch {
+                                snackbarHostState.showSnackbar("Success")
+                                enableLogin = true
+                            }
                         }
 
                         override fun onFailure(p0: Call<ResponseBody>, p1: Throwable) {
-                            Log.d("PTT", "onFailure")
+                            coroutineScope.launch {
+                                snackbarHostState.showSnackbar("Fail")
+                                enableLogin = true
+                            }
+                        }
+                    })
+            },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = enableLogin
+        ) {
+            Text(text = "Log in", modifier = Modifier)
+        }
+
+        ElevatedButton(
+            onClick = {
+                enableLogout = true
+                application.api.logout()
+                    .enqueue(object : retrofit2.Callback<ResponseBody> {
+                        override fun onResponse(
+                            p0: Call<ResponseBody>,
+                            p1: Response<ResponseBody>
+                        ) {
+                            coroutineScope.launch {
+                                snackbarHostState.showSnackbar("Success")
+                                enableLogout = true
+                            }
+                        }
+
+                        override fun onFailure(p0: Call<ResponseBody>, p1: Throwable) {
+                            coroutineScope.launch {
+                                snackbarHostState.showSnackbar("Fail")
+                                enableLogout = true
+                            }
                         }
 
                     })
             },
             modifier = Modifier.fillMaxWidth(),
-            enabled = enabled
+            enabled = enableLogout
         ) {
-            Text(text = "Login", modifier = Modifier)
+            Text(text = "Log out", modifier = Modifier)
         }
     }
 }
