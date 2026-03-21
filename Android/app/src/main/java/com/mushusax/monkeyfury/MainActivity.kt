@@ -38,18 +38,14 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             MonkeyFuryTheme {
-                val snackbarHostState = remember { SnackbarHostState() }
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
-                    snackbarHost = {
-                        SnackbarHost(snackbarHostState)
-                    }
-                ) { padding ->
+
+                    ) { padding ->
                     LoginComposable(
                         modifier = Modifier
                             .padding(padding)
                             .fillMaxSize(),
-                        snackbarHostState,
                         application as MonkeyFuryApplication
                     )
                 }
@@ -62,7 +58,6 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun LoginComposable(
     modifier: Modifier,
-    snackbarHostState: SnackbarHostState,
     application: MonkeyFuryApplication
 ) {
 
@@ -81,14 +76,12 @@ fun LoginComposable(
                             p1: Response<ResponseBody>
                         ) {
                             coroutineScope.launch {
-                                snackbarHostState.showSnackbar("Success")
                                 enableLogin = true
                             }
                         }
 
                         override fun onFailure(p0: Call<ResponseBody>, p1: Throwable) {
                             coroutineScope.launch {
-                                snackbarHostState.showSnackbar("Fail")
                                 enableLogin = true
                             }
                         }
@@ -110,14 +103,12 @@ fun LoginComposable(
                             p1: Response<ResponseBody>
                         ) {
                             coroutineScope.launch {
-                                snackbarHostState.showSnackbar("Success")
                                 enableLogout = true
                             }
                         }
 
                         override fun onFailure(p0: Call<ResponseBody>, p1: Throwable) {
                             coroutineScope.launch {
-                                snackbarHostState.showSnackbar("Fail")
                                 enableLogout = true
                             }
                         }
