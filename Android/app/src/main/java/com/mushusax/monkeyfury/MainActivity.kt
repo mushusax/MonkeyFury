@@ -30,6 +30,7 @@ import com.mushusax.monkeyfury.ui.theme.MonkeyFuryTheme
 import kotlinx.coroutines.launch
 import okhttp3.ResponseBody
 import retrofit2.Call
+import retrofit2.Callback
 import retrofit2.Response
 
 class MainActivity : ComponentActivity() {
@@ -40,85 +41,10 @@ class MainActivity : ComponentActivity() {
             MonkeyFuryTheme {
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
-
-                    ) { padding ->
-                    LoginComposable(
-                        modifier = Modifier
-                            .padding(padding)
-                            .fillMaxSize(),
-                        application as MonkeyFuryApplication
-                    )
+                ) { padding ->
+                    padding.calculateTopPadding();
                 }
             }
-        }
-    }
-}
-
-
-@Composable
-fun LoginComposable(
-    modifier: Modifier,
-    application: MonkeyFuryApplication
-) {
-
-    Column(modifier, verticalArrangement = Arrangement.Center) {
-        var enableLogin by rememberSaveable { mutableStateOf(true) }
-        var enableLogout by rememberSaveable { mutableStateOf(true) }
-        val coroutineScope = rememberCoroutineScope()
-
-        ElevatedButton(
-            onClick = {
-                enableLogin = false
-                application.api.login()
-                    .enqueue(object : retrofit2.Callback<ResponseBody> {
-                        override fun onResponse(
-                            p0: Call<ResponseBody>,
-                            p1: Response<ResponseBody>
-                        ) {
-                            coroutineScope.launch {
-                                enableLogin = true
-                            }
-                        }
-
-                        override fun onFailure(p0: Call<ResponseBody>, p1: Throwable) {
-                            coroutineScope.launch {
-                                enableLogin = true
-                            }
-                        }
-                    })
-            },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = enableLogin
-        ) {
-            Text(text = "Log in", modifier = Modifier)
-        }
-
-        ElevatedButton(
-            onClick = {
-                enableLogout = true
-                application.api.logout()
-                    .enqueue(object : retrofit2.Callback<ResponseBody> {
-                        override fun onResponse(
-                            p0: Call<ResponseBody>,
-                            p1: Response<ResponseBody>
-                        ) {
-                            coroutineScope.launch {
-                                enableLogout = true
-                            }
-                        }
-
-                        override fun onFailure(p0: Call<ResponseBody>, p1: Throwable) {
-                            coroutineScope.launch {
-                                enableLogout = true
-                            }
-                        }
-
-                    })
-            },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = enableLogout
-        ) {
-            Text(text = "Log out", modifier = Modifier)
         }
     }
 }
