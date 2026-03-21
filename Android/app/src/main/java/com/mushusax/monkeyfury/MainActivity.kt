@@ -39,10 +39,9 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             MonkeyFuryTheme {
-                Scaffold(
-                    modifier = Modifier.fillMaxSize(),
-                ) { padding ->
-                    padding.calculateTopPadding();
+                Column(modifier = Modifier.fillMaxSize()) {
+
+
                 }
             }
         }
