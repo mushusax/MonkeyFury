@@ -1,10 +1,12 @@
 package com.mushusax.monkeyfury
 
+import android.graphics.Color
 import android.os.Bundle
 import android.util.Log
 import android.util.MutableBoolean
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Arrangement
@@ -36,13 +38,10 @@ import retrofit2.Response
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        enableEdgeToEdge(statusBarStyle = SystemBarStyle.light(Color.WHITE, Color.BLACK))
         setContent {
             MonkeyFuryTheme {
-                Column(modifier = Modifier.fillMaxSize()) {
-
-
-                }
+                LoginComposable(modifier = Modifier, application as MonkeyFuryApplication)
             }
         }
     }
