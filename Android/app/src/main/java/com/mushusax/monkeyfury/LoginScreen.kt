@@ -65,7 +65,7 @@ fun LoginComposable(
         val coroutineScope = rememberCoroutineScope()
 
         Image(
-            painter = painterResource(R.drawable.monkeyfury),
+            painter = painterResource(R.drawable.ic_launcher_foreground),
             contentDescription = "Monkey Fury",
             modifier = Modifier.fillMaxWidth(1f)
         )
