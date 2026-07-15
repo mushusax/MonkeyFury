@@ -15,7 +15,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun DashboardScreen(modifier: Modifier = Modifier) {
+fun DashboardScreen(modifier: Modifier = Modifier, onLogout: () -> Unit = {}) {
     LazyVerticalGrid(
         modifier = modifier,
         columns = GridCells.Fixed(2),
@@ -38,7 +38,8 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
                     .fillMaxWidth()
                     .height(120.dp)
                     .aspectRatio(1f)
-                    .padding(PaddingValues(16.dp)), text = "2"
+                    .padding(PaddingValues(16.dp)), text = "Logout",
+                onClick = onLogout
             )
         }
         item {
