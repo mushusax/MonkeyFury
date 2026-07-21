@@ -13,7 +13,7 @@ class MonkeyFuryApplication : Application() {
         super.onCreate()
 
         api = Retrofit.Builder()
-            .baseUrl("http://192.168.1.13:3000")
+            .baseUrl("http://0.0.0.0:8080")
             .build()
             .create(MonkeyFuryApi::class.java)
     }

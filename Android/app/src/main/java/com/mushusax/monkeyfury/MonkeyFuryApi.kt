@@ -6,6 +6,9 @@ import retrofit2.http.GET
 
 
 interface MonkeyFuryApi {
+    @GET("/")
+    fun healthCheck(): Call<ResponseBody>
+
     @GET("/login")
     fun login(): Call<ResponseBody>
 

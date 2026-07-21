@@ -12,8 +12,14 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.mushusax.monkeyfury.ui.DashboardScreen
+import com.mushusax.monkeyfury.ui.LoginScreen
 import com.mushusax.monkeyfury.ui.theme.MonkeyFuryTheme
 import kotlinx.serialization.Serializable
+import okhttp3.ResponseBody
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
 
 class MainActivity : ComponentActivity() {
     @Serializable
@@ -48,9 +54,30 @@ class MainActivity : ComponentActivity() {
                             val onLogout: () -> Unit = {
                                 navController.popBackStack()
                             }
+
+                            val onHealthCheck: () -> Unit = {
+                                (application as MonkeyFuryApplication).api.healthCheck()
+                                    .enqueue(object : Callback<ResponseBody> {
+                                        override fun onResponse(
+                                            call: Call<ResponseBody?>,
+                                            response: Response<ResponseBody?>
+                                        ) {
+                                            println("Success")
+                                        }
+
+                                        override fun onFailure(
+                                            call: Call<ResponseBody?>,
+                                            t: Throwable
+                                        ) {
+                                            println("Failure")
+                                        }
+                                    })
+                            }
+
                             DashboardScreen(
                                 modifier = Modifier.fillMaxSize(),
-                                onLogout = onLogout
+                                onLogout = onLogout,
+                                onHealthCheck = onHealthCheck
                             )
                         }
                     }

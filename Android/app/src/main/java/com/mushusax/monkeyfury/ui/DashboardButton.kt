@@ -1,4 +1,4 @@
-package com.mushusax.monkeyfury
+package com.mushusax.monkeyfury.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column

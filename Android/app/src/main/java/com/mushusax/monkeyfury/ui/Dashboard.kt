@@ -1,4 +1,4 @@
-package com.mushusax.monkeyfury
+package com.mushusax.monkeyfury.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
@@ -15,7 +15,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun DashboardScreen(modifier: Modifier = Modifier, onLogout: () -> Unit = {}) {
+fun DashboardScreen(modifier: Modifier = Modifier, onLogout: () -> Unit = {}, onHealthCheck: () -> Unit = {}) {
     LazyVerticalGrid(
         modifier = modifier,
         columns = GridCells.Fixed(2),
@@ -28,8 +28,8 @@ fun DashboardScreen(modifier: Modifier = Modifier, onLogout: () -> Unit = {}) {
                     .fillMaxWidth()
                     .height(120.dp)
                     .aspectRatio(1f)
-                    .padding(PaddingValues(16.dp)),
-                text = "1"
+                    .padding(PaddingValues(16.dp)), text = "Health Check",
+                onClick = onHealthCheck
             )
         }
         item {
