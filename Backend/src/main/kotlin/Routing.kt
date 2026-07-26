@@ -1,8 +1,7 @@
 package com.mushusax
 
-import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.*
-import io.ktor.server.plugins.statuspages.StatusPages
+import io.ktor.server.plugins.statuspages.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 
