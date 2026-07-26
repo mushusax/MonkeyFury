@@ -14,10 +14,14 @@ fun Application.configureExposed() {
     )
     transaction {
         SchemaUtils.create(Users)
-        User.new {
-            username = "example"
-            name = "John Doe"
-            email = "example@example.com"
+
+        val systemUser = User.findById(1)
+        if (systemUser == null) {
+            User.new(1) {
+                username = "systemuser"
+                name = "System User"
+                email = "example@example.com"
+            }
         }
     }
 }

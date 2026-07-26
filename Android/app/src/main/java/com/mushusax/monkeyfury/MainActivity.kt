@@ -16,6 +16,8 @@ import com.mushusax.monkeyfury.ui.DashboardScreen
 import com.mushusax.monkeyfury.ui.LoginScreen
 import com.mushusax.monkeyfury.ui.theme.MonkeyFuryTheme
 import kotlinx.serialization.Serializable
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.ResponseBody
 import retrofit2.Call
 import retrofit2.Callback
@@ -41,8 +43,30 @@ class MainActivity : ComponentActivity() {
                             modifier = Modifier.fillMaxSize(),
                             color = MaterialTheme.colorScheme.background
                         ) {
-                            LoginScreen(modifier = Modifier.fillMaxWidth(), onLogin = {
-                                navController.navigate(Dashboard)
+                            LoginScreen(modifier = Modifier.fillMaxWidth(), onLogin = { username ->
+
+                                ((application as MonkeyFuryApplication).api
+                                    .login(
+                                        username.toRequestBody(
+                                            contentType = "text/plain".toMediaTypeOrNull()
+                                        )
+                                    ).enqueue(object : Callback<ResponseBody> {
+                                        override fun onResponse(
+                                            call: Call<ResponseBody?>,
+                                            response: Response<ResponseBody?>
+                                        ) {
+                                            println(response)
+                                            navController.navigate(Dashboard)
+                                        }
+
+                                        override fun onFailure(
+                                            call: Call<ResponseBody?>,
+                                            t: Throwable
+                                        ) {
+                                            println("")
+                                        }
+                                    }))
+
                             })
                         }
                     }
