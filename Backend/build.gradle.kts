@@ -18,7 +18,11 @@ dependencies {
     implementation(ktorLibs.server.core)
     implementation(ktorLibs.server.netty)
     implementation(libs.logback.classic)
-
+    implementation(ktorLibs.server.statusPages)
     testImplementation(kotlin("test"))
     testImplementation(ktorLibs.server.testHost)
+    implementation(libs.exposed.core)
+    implementation(libs.exposed.jdbc)
+    implementation(libs.exposed.dao)
+    implementation(libs.sqlite.jdbc)
 }
