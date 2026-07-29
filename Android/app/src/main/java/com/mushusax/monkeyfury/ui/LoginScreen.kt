@@ -15,26 +15,33 @@ import androidx.compose.ui.tooling.preview.Preview
 fun LoginScreen(modifier: Modifier = Modifier, onLogin: (username: String) -> Unit = {}) {
     Column(
         modifier = modifier,
-        verticalArrangement = Arrangement.Center,
+        verticalArrangement = Arrangement.SpaceBetween,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        val usernameTextFieldState = rememberTextFieldState()
 
-        OutlinedTextField(
-            modifier = Modifier.fillMaxWidth(1f),
-            state = usernameTextFieldState,
-            label = {
-                Text(text = "username")
-            })
-        LoginButton(
-            text = "Login",
-            modifier = Modifier.fillMaxWidth(1f),
-            onClick = { onLogin(usernameTextFieldState.text.toString()) })
+        Logo()
+
+        Column(
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            val usernameTextFieldState = rememberTextFieldState()
+            OutlinedTextField(
+                modifier = Modifier.fillMaxWidth(1f),
+                state = usernameTextFieldState,
+                label = {
+                    Text(text = "username")
+                })
+            LoginButton(
+                text = "Login",
+                modifier = Modifier.fillMaxWidth(1f),
+                onClick = { onLogin(usernameTextFieldState.text.toString()) })
+        }
     }
 }
 
-@Preview()
+@Preview(showBackground = true)
 @Composable
 fun LoginScreenPreview() {
-    LoginScreen()
+    LoginScreen(modifier = Modifier.fillMaxWidth())
 }
