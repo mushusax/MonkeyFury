@@ -27,7 +27,7 @@ fun Application.configureRouting() {
             val user = transaction { User.find { Users.username eq username }.singleOrNull() }
 
             if (user != null) {
-                call.respondText(status = HttpStatusCode.Found) {
+                call.respondText(status = HttpStatusCode.OK) {
                     user.toString()
                 }
             } else {

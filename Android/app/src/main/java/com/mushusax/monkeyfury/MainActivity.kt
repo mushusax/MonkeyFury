@@ -1,6 +1,7 @@
 package com.mushusax.monkeyfury
 
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.safeContentPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -44,31 +46,47 @@ class MainActivity : ComponentActivity() {
                             modifier = Modifier.fillMaxSize(),
                             color = MaterialTheme.colorScheme.background
                         ) {
-                            LoginScreen(modifier = Modifier.fillMaxWidth().safeContentPadding(), onLogin = { username ->
+                            val context = LocalContext.current
 
-                                ((application as MonkeyFuryApplication).api
-                                    .login(
-                                        username.toRequestBody(
-                                            contentType = "text/plain".toMediaTypeOrNull()
-                                        )
-                                    ).enqueue(object : Callback<ResponseBody> {
-                                        override fun onResponse(
-                                            call: Call<ResponseBody?>,
-                                            response: Response<ResponseBody?>
-                                        ) {
-                                            println(response)
-                                            navController.navigate(Dashboard)
-                                        }
+                            LoginScreen(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .safeContentPadding(),
+                                onLogin = { username ->
+                                    ((application as MonkeyFuryApplication).api
+                                        .login(
+                                            username.toRequestBody(
+                                                contentType = "text/plain".toMediaTypeOrNull()
+                                            )
+                                        ).enqueue(object : Callback<ResponseBody> {
+                                            override fun onResponse(
+                                                call: Call<ResponseBody?>,
+                                                response: Response<ResponseBody?>
+                                            ) {
+                                                if (response.isSuccessful) {
+                                                    navController.navigate(Dashboard)
+                                                } else {
+                                                    Toast.makeText(
+                                                        context,
+                                                        response.message().orEmpty(),
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
+                                                }
+                                            }
 
-                                        override fun onFailure(
-                                            call: Call<ResponseBody?>,
-                                            t: Throwable
-                                        ) {
-                                            println("")
-                                        }
-                                    }))
+                                            override fun onFailure(
+                                                call: Call<ResponseBody?>,
+                                                t: Throwable
+                                            ) {
+                                                Toast.makeText(
+                                                    context,
+                                                    t.message.orEmpty(),
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                            }
+                                        }))
 
-                            })
+                                })
                         }
                     }
                     composable<Dashboard> {
