@@ -1,4 +1,4 @@
-package com.mushusax.monkeyfury.ui
+package com.mushusax.monkeyfury.ui.screen
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -18,10 +18,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.mushusax.monkeyfury.ui.component.AppBar
+import com.mushusax.monkeyfury.ui.component.DashboardButton
+import com.mushusax.monkeyfury.ui.viewmodel.DashboardViewModel
 
 @Composable
 fun DashboardScreen(
     modifier: Modifier = Modifier,
+    viewModel: DashboardViewModel = viewModel(),
     onLogout: () -> Unit = {},
     onTasks: () -> Unit = {}
 ) {
@@ -31,7 +36,10 @@ fun DashboardScreen(
                 .fillMaxWidth(1f)
                 .background(MaterialTheme.colorScheme.surface)
                 .statusBarsPadding(),
-            onLogout = onLogout
+            onLogout = {
+                viewModel.logOut()
+                onLogout()
+            }
         )
 
         LazyVerticalGrid(

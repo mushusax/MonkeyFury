@@ -1,7 +1,6 @@
 package com.mushusax.monkeyfury
 
 import android.os.Bundle
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -12,22 +11,15 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.mushusax.monkeyfury.ui.DashboardScreen
-import com.mushusax.monkeyfury.ui.LoginScreen
+import com.mushusax.monkeyfury.ui.screen.DashboardScreen
+import com.mushusax.monkeyfury.ui.screen.LoginScreen
 import com.mushusax.monkeyfury.ui.theme.MonkeyFuryTheme
 import kotlinx.serialization.Serializable
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.RequestBody.Companion.toRequestBody
-import okhttp3.ResponseBody
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
 
 class MainActivity : ComponentActivity() {
     @Serializable
@@ -47,8 +39,6 @@ class MainActivity : ComponentActivity() {
                 focusManager.clearFocus()
                 softwareKeyboardController?.hide()
             }
-
-
             MonkeyFuryTheme {
                 NavHost(navController = navController, startDestination = Login) {
                     composable<Login> {
@@ -56,46 +46,13 @@ class MainActivity : ComponentActivity() {
                             modifier = Modifier.fillMaxSize(),
                             color = MaterialTheme.colorScheme.background
                         ) {
-                            val context = LocalContext.current
-
                             LoginScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .navigationBarsPadding()
                                     .imePadding(),
-                                onLogin = { username ->
-                                    ((application as MonkeyFuryApplication).api
-                                        .login(
-                                            username.trim().toRequestBody(
-                                                contentType = "text/plain".toMediaTypeOrNull()
-                                            )
-                                        ).enqueue(object : Callback<ResponseBody> {
-                                            override fun onResponse(
-                                                call: Call<ResponseBody?>,
-                                                response: Response<ResponseBody?>
-                                            ) {
-                                                if (response.isSuccessful) {
-                                                    navController.navigate(Dashboard)
-                                                } else {
-                                                    Toast.makeText(
-                                                        context,
-                                                        response.message().orEmpty(),
-                                                        Toast.LENGTH_SHORT
-                                                    ).show()
-                                                }
-                                            }
-
-                                            override fun onFailure(
-                                                call: Call<ResponseBody?>,
-                                                t: Throwable
-                                            ) {
-                                                Toast.makeText(
-                                                    context,
-                                                    t.message.orEmpty(),
-                                                    Toast.LENGTH_SHORT
-                                                ).show()
-                                            }
-                                        }))
+                                onLogin = {
+                                    navController.navigate(Dashboard)
                                 })
                         }
                     }

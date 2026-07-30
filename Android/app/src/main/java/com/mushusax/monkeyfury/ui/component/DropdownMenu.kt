@@ -1,4 +1,4 @@
-package com.mushusax.monkeyfury.ui
+package com.mushusax.monkeyfury.ui.component
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.wrapContentHeight
@@ -20,7 +20,7 @@ import com.mushusax.monkeyfury.R
 
 @Composable
 fun DropdownMenu(
-    modifier: Modifier = Modifier,
+    modifier: Modifier = Modifier.Companion,
     expanded: Boolean = false,
     onLogout: () -> Unit = {},
     onHealthCheck: () -> Unit = {}
@@ -62,5 +62,5 @@ fun DropdownMenu(
 @Preview()
 @Composable
 fun PreviewDropdownMenu() {
-    DropdownMenu(modifier = Modifier, expanded = true)
+    DropdownMenu(modifier = Modifier.Companion, expanded = true)
 }

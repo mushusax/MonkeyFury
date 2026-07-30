@@ -1,4 +1,4 @@
-package com.mushusax.monkeyfury.ui
+package com.mushusax.monkeyfury.ui.component
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -10,7 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 
 @Composable
-fun AppBar(modifier: Modifier = Modifier, onLogout: () -> Unit = {}) {
+fun AppBar(modifier: Modifier = Modifier.Companion, onLogout: () -> Unit = {}) {
     Column(
         modifier = modifier
     ) {
@@ -19,7 +19,7 @@ fun AppBar(modifier: Modifier = Modifier, onLogout: () -> Unit = {}) {
             horizontalArrangement = Arrangement.End,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            DropdownMenu(modifier = Modifier, onLogout = onLogout)
+            DropdownMenu(modifier = Modifier.Companion, onLogout = onLogout)
         }
     }
 }

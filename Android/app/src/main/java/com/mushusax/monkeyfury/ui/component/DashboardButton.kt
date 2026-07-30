@@ -1,4 +1,4 @@
-package com.mushusax.monkeyfury.ui
+package com.mushusax.monkeyfury.ui.component
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -15,7 +15,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun DashboardButton(modifier: Modifier = Modifier, text: String, onClick: () -> Unit = {}) {
+fun DashboardButton(modifier: Modifier = Modifier.Companion, text: String, onClick: () -> Unit = {}) {
     ElevatedCard(shape = RoundedCornerShape(16.dp), modifier = modifier, onClick = onClick) {
         Column(
             modifier = Modifier.fillMaxSize(),
