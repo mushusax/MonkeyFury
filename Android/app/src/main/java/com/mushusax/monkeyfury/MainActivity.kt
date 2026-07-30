@@ -7,11 +7,14 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.safeContentPadding
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -37,8 +40,15 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-
             val navController = rememberNavController()
+            val focusManager = LocalFocusManager.current
+            val softwareKeyboardController = LocalSoftwareKeyboardController.current
+            navController.addOnDestinationChangedListener { controller, destination, arguments ->
+                focusManager.clearFocus()
+                softwareKeyboardController?.hide()
+            }
+
+
             MonkeyFuryTheme {
                 NavHost(navController = navController, startDestination = Login) {
                     composable<Login> {
@@ -51,11 +61,12 @@ class MainActivity : ComponentActivity() {
                             LoginScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .safeContentPadding(),
+                                    .navigationBarsPadding()
+                                    .imePadding(),
                                 onLogin = { username ->
                                     ((application as MonkeyFuryApplication).api
                                         .login(
-                                            username.toRequestBody(
+                                            username.trim().toRequestBody(
                                                 contentType = "text/plain".toMediaTypeOrNull()
                                             )
                                         ).enqueue(object : Callback<ResponseBody> {
@@ -85,7 +96,6 @@ class MainActivity : ComponentActivity() {
                                                 ).show()
                                             }
                                         }))
-
                                 })
                         }
                     }
@@ -98,29 +108,10 @@ class MainActivity : ComponentActivity() {
                                 navController.popBackStack()
                             }
 
-                            val onHealthCheck: () -> Unit = {
-                                (application as MonkeyFuryApplication).api.healthCheck()
-                                    .enqueue(object : Callback<ResponseBody> {
-                                        override fun onResponse(
-                                            call: Call<ResponseBody?>,
-                                            response: Response<ResponseBody?>
-                                        ) {
-                                            println("Success")
-                                        }
-
-                                        override fun onFailure(
-                                            call: Call<ResponseBody?>,
-                                            t: Throwable
-                                        ) {
-                                            println("Failure")
-                                        }
-                                    })
-                            }
-
                             DashboardScreen(
-                                modifier = Modifier.fillMaxSize(),
+                                modifier = Modifier
+                                    .fillMaxSize(),
                                 onLogout = onLogout,
-                                onHealthCheck = onHealthCheck
                             )
                         }
                     }
