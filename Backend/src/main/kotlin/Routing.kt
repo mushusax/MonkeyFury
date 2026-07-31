@@ -1,9 +1,6 @@
 package com.mushusax
 
-import com.mushusax.model.UserDAO
-import com.mushusax.model.UsersTable
-import com.mushusax.model.daoToModel
-import com.mushusax.model.withTransaction
+import com.mushusax.model.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
@@ -27,10 +24,6 @@ fun Application.configureRouting() {
     }
 
     routing {
-        get("/") {
-            call.respondText("Hello, World!")
-        }
-
         post("/login") {
             val loginParams = call.receive<LoginParams>()
             val user = withTransaction {
@@ -43,10 +36,24 @@ fun Application.configureRouting() {
                 call.respond(status = HttpStatusCode.NotFound, "User not found")
             }
         }
+
+        post("/logout") {
+            val logoutParams = call.receive<LogoutParams>()
+            val user = withTransaction {
+                UserDAO.findById(logoutParams.user.id)
+            }
+            if (user != null) {
+                call.respond(message = logoutParams.user, status = HttpStatusCode.OK)
+            }
+            else {
+                call.respond(HttpStatusCode.NotFound, "User not found")
+            }
+        }
     }
 }
 
 @Serializable
 data class LoginParams(val username: String)
 
-
+@Serializable
+data class LogoutParams(val user: User)

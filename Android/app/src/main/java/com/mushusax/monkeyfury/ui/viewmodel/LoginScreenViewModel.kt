@@ -11,7 +11,8 @@ import kotlinx.coroutines.launch
 
 class LoginScreenViewModel(application: Application) : AndroidViewModel(application) {
 
-    var uiState: MutableStateFlow<LoginUiState> = MutableStateFlow(LoginUiState.Error(null))
+    var uiState: MutableStateFlow<LoginUiState> =
+        MutableStateFlow(LoginUiState.ErrorLoggingIn(null))
 
     fun logIn(username: String) {
         viewModelScope.launch {
@@ -21,16 +22,18 @@ class LoginScreenViewModel(application: Application) : AndroidViewModel(applicat
                 )
             }.onSuccess { user ->
                 if (!user.username.equals("User not found")) {
-                    uiState.value = LoginUiState.Success(user)
+                    uiState.value = LoginUiState.NavigateToDashboard(user)
                 }
             }.onFailure { exception ->
-                uiState.value = LoginUiState.Error(exception)
+                uiState.value = LoginUiState.ErrorLoggingIn(exception)
             }
         }
     }
 }
 
 sealed class LoginUiState {
-    data class Success(val user: MonkeyFuryApi.User) : LoginUiState()
-    data class Error(val exception: Throwable?) : LoginUiState()
+    data class NavigateToDashboard(val user: MonkeyFuryApi.User) : LoginUiState()
+    data class ErrorLoggingIn(val exception: Throwable?) : LoginUiState()
+    object Idle : LoginUiState()
+
 }

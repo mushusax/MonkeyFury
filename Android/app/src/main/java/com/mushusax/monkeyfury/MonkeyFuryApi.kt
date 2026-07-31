@@ -1,7 +1,6 @@
 package com.mushusax.monkeyfury
 
 import kotlinx.serialization.Serializable
-import okhttp3.ResponseBody
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
@@ -18,12 +17,18 @@ interface MonkeyFuryApi {
 
     @Serializable
     data class User(
+        val id: Int,
         val username: String,
         val email: String,
         val name: String
     )
 
-    @GET("/logout")
-    suspend fun logout(): ResponseBody
+    @Serializable
+    data class LogoutParams(
+        val user: User
+    )
+
+    @POST("/logout")
+    suspend fun logout(@Body param: LogoutParams): User
 }
 

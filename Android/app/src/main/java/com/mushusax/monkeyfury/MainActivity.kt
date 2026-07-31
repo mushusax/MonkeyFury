@@ -13,6 +13,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -30,6 +31,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val viewModel = ViewModelProvider(this)[MainActivityViewModel::class.java]
         enableEdgeToEdge()
         setContent {
             val navController = rememberNavController()
@@ -51,8 +53,9 @@ class MainActivity : ComponentActivity() {
                                     .fillMaxWidth()
                                     .navigationBarsPadding()
                                     .imePadding(),
-                                onLogin = {
-                                    navController.navigate(Dashboard)
+                                onLogin = { user ->
+                                    viewModel.user = user
+                                    navController.navigate(route = Dashboard)
                                 })
                         }
                     }
@@ -63,11 +66,13 @@ class MainActivity : ComponentActivity() {
                         ) {
                             val onLogout: () -> Unit = {
                                 navController.popBackStack()
+                                //viewModel.user = null
                             }
 
                             DashboardScreen(
                                 modifier = Modifier
                                     .fillMaxSize(),
+                                user = viewModel.user,
                                 onLogout = onLogout,
                             )
                         }

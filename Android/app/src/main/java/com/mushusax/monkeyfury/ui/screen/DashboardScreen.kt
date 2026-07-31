@@ -15,21 +15,40 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.mushusax.monkeyfury.MonkeyFuryApi
 import com.mushusax.monkeyfury.ui.component.AppBar
 import com.mushusax.monkeyfury.ui.component.DashboardButton
 import com.mushusax.monkeyfury.ui.viewmodel.DashboardViewModel
+import com.mushusax.monkeyfury.ui.viewmodel.LogoutUiState
 
 @Composable
 fun DashboardScreen(
     modifier: Modifier = Modifier,
     viewModel: DashboardViewModel = viewModel(),
+    user: MonkeyFuryApi.User? = null,
     onLogout: () -> Unit = {},
     onTasks: () -> Unit = {}
 ) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    LaunchedEffect(uiState) {
+        when (uiState) {
+            is LogoutUiState.Success -> {
+                onLogout()
+            }
+
+            else -> {
+                val here = "here"
+            }
+        }
+    }
+
     Column(modifier = modifier) {
         AppBar(
             modifier = Modifier
@@ -37,8 +56,7 @@ fun DashboardScreen(
                 .background(MaterialTheme.colorScheme.surface)
                 .statusBarsPadding(),
             onLogout = {
-                viewModel.logOut()
-                onLogout()
+                viewModel.logOut(user!!)
             }
         )
 
