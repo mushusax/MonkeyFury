@@ -1,7 +1,7 @@
 package com.mushusax
 
-import com.mushusax.model.User
-import com.mushusax.model.Users
+import com.mushusax.model.UserDAO
+import com.mushusax.model.UsersTable
 import io.ktor.server.application.*
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.SchemaUtils
@@ -13,11 +13,11 @@ fun Application.configureExposed() {
         driver = "org.sqlite.JDBC"
     )
     transaction {
-        SchemaUtils.create(Users)
+        SchemaUtils.create(UsersTable)
 
-        val systemUser = User.findById(1)
+        val systemUser = UserDAO.findById(1)
         if (systemUser == null) {
-            User.new(1) {
+            UserDAO.new(1) {
                 username = "systemuser"
                 name = "System User"
                 email = "example@example.com"

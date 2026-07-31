@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(ktorLibs.plugins.ktor)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 group = "com.mushusax"
@@ -19,10 +20,12 @@ dependencies {
     implementation(ktorLibs.server.netty)
     implementation(libs.logback.classic)
     implementation(ktorLibs.server.statusPages)
+    implementation(ktorLibs.serialization.kotlinx.json)
     testImplementation(kotlin("test"))
     testImplementation(ktorLibs.server.testHost)
     implementation(libs.exposed.core)
     implementation(libs.exposed.jdbc)
     implementation(libs.exposed.dao)
     implementation(libs.sqlite.jdbc)
+    implementation(ktorLibs.server.contentNegotiation)
 }
