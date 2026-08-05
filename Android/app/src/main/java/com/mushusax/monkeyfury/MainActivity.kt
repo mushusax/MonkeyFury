@@ -19,6 +19,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.mushusax.monkeyfury.ui.screen.DashboardScreen
 import com.mushusax.monkeyfury.ui.screen.LoginScreen
+import com.mushusax.monkeyfury.ui.screen.TasksScreen
 import com.mushusax.monkeyfury.ui.theme.MonkeyFuryTheme
 import kotlinx.serialization.Serializable
 
@@ -28,6 +29,9 @@ class MainActivity : ComponentActivity() {
 
     @Serializable
     object Dashboard
+
+    @Serializable
+    object Tasks
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -69,11 +73,29 @@ class MainActivity : ComponentActivity() {
                                 //viewModel.user = null
                             }
 
+                            val onTasksClicked: () -> Unit = {
+                                navController.navigate(route = Tasks)
+                            }
+
                             DashboardScreen(
                                 modifier = Modifier
                                     .fillMaxSize(),
                                 user = viewModel.user,
                                 onLogout = onLogout,
+                                onTasksClicked = onTasksClicked
+                            )
+                        }
+                    }
+                    composable<Tasks> {
+                        Surface(
+                            modifier = Modifier.fillMaxSize(),
+                            color = MaterialTheme.colorScheme.background
+                        ) {
+                            TasksScreen(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .navigationBarsPadding()
+                                    .imePadding(),
                             )
                         }
                     }

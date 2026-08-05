@@ -34,7 +34,7 @@ fun DashboardScreen(
     viewModel: DashboardViewModel = viewModel(),
     user: MonkeyFuryApi.User? = null,
     onLogout: () -> Unit = {},
-    onTasks: () -> Unit = {}
+    onTasksClicked: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     LaunchedEffect(uiState) {
@@ -75,7 +75,7 @@ fun DashboardScreen(
                         .height(120.dp)
                         .aspectRatio(1f)
                         .padding(PaddingValues(16.dp)), text = "Tasks",
-                    onClick = onTasks
+                    onClick = onTasksClicked
                 )
             }
             item {
