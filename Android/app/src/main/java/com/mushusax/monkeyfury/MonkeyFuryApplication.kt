@@ -1,6 +1,7 @@
 package com.mushusax.monkeyfury
 
 import android.app.Application
+import com.mushusax.monkeyfury.data.network.MonkeyFuryApi
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType

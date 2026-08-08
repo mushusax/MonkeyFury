@@ -22,7 +22,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.mushusax.monkeyfury.MonkeyFuryApi
+import com.mushusax.monkeyfury.data.network.MonkeyFuryApi
 import com.mushusax.monkeyfury.ui.component.AppBar
 import com.mushusax.monkeyfury.ui.component.DashboardButton
 import com.mushusax.monkeyfury.ui.viewmodel.DashboardViewModel

@@ -17,6 +17,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.mushusax.monkeyfury.ui.main.MainActivityViewModel
 import com.mushusax.monkeyfury.ui.screen.DashboardScreen
 import com.mushusax.monkeyfury.ui.screen.LoginScreen
 import com.mushusax.monkeyfury.ui.screen.TasksScreen

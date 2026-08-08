@@ -4,7 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.application
 import androidx.lifecycle.viewModelScope
-import com.mushusax.monkeyfury.MonkeyFuryApi
+import com.mushusax.monkeyfury.data.network.MonkeyFuryApi
 import com.mushusax.monkeyfury.MonkeyFuryApplication
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch

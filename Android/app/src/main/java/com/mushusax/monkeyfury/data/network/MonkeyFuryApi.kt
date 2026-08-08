@@ -1,10 +1,8 @@
-package com.mushusax.monkeyfury
+package com.mushusax.monkeyfury.data.network
 
 import kotlinx.serialization.Serializable
 import retrofit2.http.Body
-import retrofit2.http.GET
 import retrofit2.http.POST
-
 
 interface MonkeyFuryApi {
     @POST("/login")
@@ -31,4 +29,3 @@ interface MonkeyFuryApi {
     @POST("/logout")
     suspend fun logout(@Body param: LogoutParams): User
 }
-

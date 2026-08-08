@@ -14,7 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.mushusax.monkeyfury.MonkeyFuryApi
+import com.mushusax.monkeyfury.data.network.MonkeyFuryApi
 import com.mushusax.monkeyfury.ui.component.LoginButton
 import com.mushusax.monkeyfury.ui.component.Logo
 import com.mushusax.monkeyfury.ui.viewmodel.LoginScreenViewModel
