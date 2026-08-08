@@ -1,25 +1,20 @@
 package com.mushusax.monkeyfury.data.network
 
+import com.mushusax.monkeyfury.data.User
 import kotlinx.serialization.Serializable
+import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.POST
 
 interface MonkeyFuryApi {
-    @POST("/login")
-    suspend fun login(@Body requestBody: LoginParams): User
 
     @Serializable
     data class LoginParams(
         val username: String
     )
 
-    @Serializable
-    data class User(
-        val id: Int,
-        val username: String,
-        val email: String,
-        val name: String
-    )
+    @POST("/login")
+    suspend fun login(@Body requestBody: LoginParams): Response<User?>
 
     @Serializable
     data class LogoutParams(
@@ -27,5 +22,5 @@ interface MonkeyFuryApi {
     )
 
     @POST("/logout")
-    suspend fun logout(@Body param: LogoutParams): User
+    suspend fun logout(@Body param: LogoutParams): Response<Unit>
 }

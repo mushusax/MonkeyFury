@@ -33,7 +33,7 @@ fun Application.configureRouting() {
             if (user != null) {
                 call.respond(message = user, status = HttpStatusCode.OK)
             } else {
-                call.respond(status = HttpStatusCode.NotFound, "User not found")
+                call.respond(message = HttpStatusCode.NotFound)
             }
         }
 
@@ -43,10 +43,9 @@ fun Application.configureRouting() {
                 UserDAO.findById(logoutParams.user.id)
             }
             if (user != null) {
-                call.respond(message = logoutParams.user, status = HttpStatusCode.OK)
-            }
-            else {
-                call.respond(HttpStatusCode.NotFound, "User not found")
+                call.respond(message = HttpStatusCode.OK)
+            } else {
+                call.respond(message = HttpStatusCode.NotFound)
             }
         }
     }

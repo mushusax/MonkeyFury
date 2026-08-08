@@ -22,31 +22,20 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.mushusax.monkeyfury.data.network.MonkeyFuryApi
 import com.mushusax.monkeyfury.ui.component.AppBar
 import com.mushusax.monkeyfury.ui.component.DashboardButton
 import com.mushusax.monkeyfury.ui.viewmodel.DashboardViewModel
-import com.mushusax.monkeyfury.ui.viewmodel.LogoutUiState
 
 @Composable
 fun DashboardScreen(
     modifier: Modifier = Modifier,
-    viewModel: DashboardViewModel = viewModel(),
-    user: MonkeyFuryApi.User? = null,
+    viewModel: DashboardViewModel = viewModel(factory = DashboardViewModel.Factory),
     onLogout: () -> Unit = {},
     onTasksClicked: () -> Unit = {}
 ) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    LaunchedEffect(uiState) {
-        when (uiState) {
-            is LogoutUiState.Success -> {
-                onLogout()
-            }
-
-            else -> {
-                val here = "here"
-            }
-        }
+    val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
+    LaunchedEffect(currentUser) {
+        if (currentUser == null) onLogout()
     }
 
     Column(modifier = modifier) {
@@ -56,7 +45,7 @@ fun DashboardScreen(
                 .background(MaterialTheme.colorScheme.surface)
                 .statusBarsPadding(),
             onLogout = {
-                viewModel.logOut(user!!)
+                viewModel.logOut()
             }
         )
 

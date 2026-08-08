@@ -1,39 +1,34 @@
 package com.mushusax.monkeyfury.ui.viewmodel
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.application
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.mushusax.monkeyfury.data.network.MonkeyFuryApi
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import com.mushusax.monkeyfury.MonkeyFuryApplication
-import kotlinx.coroutines.flow.MutableStateFlow
+import com.mushusax.monkeyfury.data.User
+import com.mushusax.monkeyfury.data.network.MonkeyFuryApi
+import com.mushusax.monkeyfury.data.repository.UserRepository
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-class LoginScreenViewModel(application: Application) : AndroidViewModel(application) {
+class LoginScreenViewModel(val userRepository: UserRepository) : ViewModel() {
 
-    var uiState: MutableStateFlow<LoginUiState> =
-        MutableStateFlow(LoginUiState.ErrorLoggingIn(null))
+    val currentUser: StateFlow<User?> = userRepository.currentUser
 
     fun logIn(username: String) {
         viewModelScope.launch {
-            runCatching {
-                (application as MonkeyFuryApplication).api.login(
-                    MonkeyFuryApi.LoginParams(username.trim())
-                )
-            }.onSuccess { user ->
-                if (!user.username.equals("User not found")) {
-                    uiState.value = LoginUiState.NavigateToDashboard(user)
-                }
-            }.onFailure { exception ->
-                uiState.value = LoginUiState.ErrorLoggingIn(exception)
+            userRepository.login(MonkeyFuryApi.LoginParams(username.trim()))
+        }
+    }
+
+    companion object {
+        val Factory: ViewModelProvider.Factory = viewModelFactory {
+            initializer {
+                val app =
+                    this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as MonkeyFuryApplication
+                LoginScreenViewModel(userRepository = app.userRepository)
             }
         }
     }
-}
-
-sealed class LoginUiState {
-    data class NavigateToDashboard(val user: MonkeyFuryApi.User) : LoginUiState()
-    data class ErrorLoggingIn(val exception: Throwable?) : LoginUiState()
-    object Idle : LoginUiState()
-
 }

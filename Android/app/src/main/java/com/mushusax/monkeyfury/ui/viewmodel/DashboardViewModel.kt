@@ -1,33 +1,32 @@
 package com.mushusax.monkeyfury.ui.viewmodel
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.application
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.mushusax.monkeyfury.data.network.MonkeyFuryApi
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import com.mushusax.monkeyfury.MonkeyFuryApplication
-import kotlinx.coroutines.flow.MutableStateFlow
+import com.mushusax.monkeyfury.data.User
+import com.mushusax.monkeyfury.data.repository.UserRepository
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-class DashboardViewModel(application: Application) : AndroidViewModel(application) {
+class DashboardViewModel(val userRepository: UserRepository) : ViewModel() {
 
-    var uiState: MutableStateFlow<LogoutUiState> = MutableStateFlow(LogoutUiState.Error(null))
-    fun logOut(user: MonkeyFuryApi.User) {
+    val currentUser: StateFlow<User?> = userRepository.currentUser
+    fun logOut() {
         viewModelScope.launch {
-            runCatching {
-                (application as MonkeyFuryApplication).api.logout(MonkeyFuryApi.LogoutParams(user))
-            }.onSuccess { user ->
-                if (!user.username.equals("User not found")) {
-                    uiState.value = LogoutUiState.Success(user)
-                }
-            }.onFailure { exception ->
-                uiState.value = LogoutUiState.Error(exception)
+            userRepository.logout()
+        }
+    }
+
+    companion object {
+        val Factory: ViewModelProvider.Factory = viewModelFactory {
+            initializer {
+                val app =
+                    this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as MonkeyFuryApplication
+                DashboardViewModel(userRepository = app.userRepository)
             }
         }
     }
-}
-
-sealed class LogoutUiState {
-    data class Success(val user: MonkeyFuryApi.User) : LogoutUiState()
-    data class Error(val exception: Throwable?) : LogoutUiState()
 }
