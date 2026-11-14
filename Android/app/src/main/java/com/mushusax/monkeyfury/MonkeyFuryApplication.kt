@@ -19,7 +19,7 @@ class MonkeyFuryApplication : Application() {
 
     val api: MonkeyFuryApi by lazy {
         Retrofit.Builder()
-            .baseUrl("http://0.0.0.0:8080")
+            .baseUrl("https://api.munkyfury.app")
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()
             .create(MonkeyFuryApi::class.java)
