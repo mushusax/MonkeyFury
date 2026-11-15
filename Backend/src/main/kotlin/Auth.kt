@@ -17,15 +17,20 @@ import io.ktor.server.routing.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
+import java.security.SecureRandom
 import java.util.*
 import kotlin.time.Duration.Companion.days
 import kotlin.uuid.Uuid
+
+//The JWT secret is generated and kept in memory for now
+private val sessionAlgorithm: Algorithm =
+    Algorithm.HMAC256(ByteArray(64).also(SecureRandom()::nextBytes))
 
 class JwtConfig(config: ApplicationConfig) {
     val issuer = config.property("auth.jwt.issuer").getString()
     val audience = config.property("auth.jwt.audience").getString()
     val validity = config.property("auth.jwt.validityDays").getString().toLong().days
-    val algorithm: Algorithm = Algorithm.HMAC256(config.property("auth.jwt.secret").getString())
+    val algorithm: Algorithm = sessionAlgorithm
 }
 
 fun Application.configureAuth() {
