@@ -28,4 +28,7 @@ dependencies {
     implementation(libs.exposed.dao)
     implementation(libs.sqlite.jdbc)
     implementation(ktorLibs.server.contentNegotiation)
+    implementation(ktorLibs.server.auth)
+    implementation(ktorLibs.server.auth.jwt)
+    implementation(libs.google.api.client)
 }
