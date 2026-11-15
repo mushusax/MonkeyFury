@@ -1,6 +1,5 @@
 package com.mushusax
 
-import com.mushusax.model.UserDAO
 import com.mushusax.model.UsersTable
 import io.ktor.server.application.*
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -14,14 +13,5 @@ fun Application.configureExposed() {
     )
     transaction {
         SchemaUtils.create(UsersTable)
-
-        val systemUser = UserDAO.findById(1)
-        if (systemUser == null) {
-            UserDAO.new(1) {
-                username = "systemuser"
-                name = "System User"
-                email = "example@example.com"
-            }
-        }
     }
 }
