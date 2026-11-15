@@ -4,6 +4,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import org.jetbrains.exposed.v1.core.dao.id.EntityID
+import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.dao.id.IntIdTable
 import org.jetbrains.exposed.v1.dao.IntEntity
 import org.jetbrains.exposed.v1.dao.IntEntityClass
@@ -39,6 +40,17 @@ class UserDAO(id: EntityID<Int>) : IntEntity(id) {
 
 suspend fun <T> withTransaction(block: suspend JdbcTransaction.() -> T): T = withContext(Dispatchers.IO) {
     inTopLevelSuspendTransaction { block() }
+}
+
+suspend fun getUser(googleSub: String, email: String, firstName: String, lastName: String): User = withTransaction {
+    val existing = UserDAO.find { UsersTable.googleSub eq googleSub }.singleOrNull()
+    val dao = existing ?: UserDAO.new {
+        this.googleSub = googleSub
+        this.email = email
+        this.firstName = firstName
+        this.lastName = lastName
+    }
+    daoToModel(dao)
 }
 
 fun daoToModel(dao: UserDAO) = User(

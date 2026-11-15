@@ -3,5 +3,16 @@ ktor:
     port: 8080
   application:
     modules:
-      - com.mushusax.RoutingKt.configureRouting
+      - com.mushusax.PluginsKt.configurePlugins
       - com.mushusax.ExposedKt.configureExposed
+      - com.mushusax.AuthKt.configureAuth
+      - com.mushusax.RoutingKt.configureRouting
+
+auth:
+  google:
+    webClientId: "399364014623-3uqeqnouqg5f2iq4l4aucee02aksf7tm.apps.googleusercontent.com"
+  jwt:
+    secret: $JWT_SECRET
+    issuer: "https://munkyfury.app"
+    audience: "munkyfury-app"
+    validityDays: 7
