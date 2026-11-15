@@ -9,27 +9,32 @@ import org.jetbrains.exposed.v1.dao.IntEntity
 import org.jetbrains.exposed.v1.dao.IntEntityClass
 import org.jetbrains.exposed.v1.jdbc.JdbcTransaction
 import org.jetbrains.exposed.v1.jdbc.transactions.inTopLevelSuspendTransaction
+import kotlin.uuid.Uuid
 
 @Serializable
 data class User(
-    val id: Int,
-    val username: String,
+    val publicId: Uuid,
     val email: String,
-    val name: String
+    val firstName: String,
+    val lastName: String
 )
 
 object UsersTable : IntIdTable("users") {
-    val username = varchar("username", 255)
-    val email = varchar("email", 255)
-    val name = varchar("name", 255)
+    val publicId = uuid("public_id").uniqueIndex().clientDefault { Uuid.random() }
+    val googleSub = varchar("google_sub", 255).uniqueIndex()
+    val email = varchar("email", 320)
+    val firstName = varchar("first_name", 100)
+    val lastName = varchar("last_name", 100).default("")
 }
 
 class UserDAO(id: EntityID<Int>) : IntEntity(id) {
     companion object : IntEntityClass<UserDAO>(UsersTable)
 
-    var username by UsersTable.username
+    var publicId by UsersTable.publicId
+    var googleSub by UsersTable.googleSub
     var email by UsersTable.email
-    var name by UsersTable.name
+    var firstName by UsersTable.firstName
+    var lastName by UsersTable.lastName
 }
 
 suspend fun <T> withTransaction(block: suspend JdbcTransaction.() -> T): T = withContext(Dispatchers.IO) {
@@ -37,8 +42,8 @@ suspend fun <T> withTransaction(block: suspend JdbcTransaction.() -> T): T = wit
 }
 
 fun daoToModel(dao: UserDAO) = User(
-    dao.id.value,
-    dao.username,
-    dao.email,
-    dao.name
+    publicId = dao.publicId,
+    email = dao.email,
+    firstName = dao.firstName,
+    lastName = dao.lastName
 )
