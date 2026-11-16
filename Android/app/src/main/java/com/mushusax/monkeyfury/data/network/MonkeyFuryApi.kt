@@ -9,18 +9,16 @@ import retrofit2.http.POST
 interface MonkeyFuryApi {
 
     @Serializable
-    data class LoginParams(
-        val username: String
+    data class GoogleLoginParams(
+        val idToken: String
     )
 
-    @POST("/login")
-    suspend fun login(@Body requestBody: LoginParams): Response<User?>
-
     @Serializable
-    data class LogoutParams(
+    data class LoginResponse(
+        val token: String,
         val user: User
     )
 
-    @POST("/logout")
-    suspend fun logout(@Body param: LogoutParams): Response<Unit>
+    @POST("/auth/google")
+    suspend fun loginWithGoogle(@Body body: GoogleLoginParams): Response<LoginResponse>
 }
