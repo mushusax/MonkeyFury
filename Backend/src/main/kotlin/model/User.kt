@@ -10,6 +10,7 @@ import org.jetbrains.exposed.v1.dao.IntEntity
 import org.jetbrains.exposed.v1.dao.IntEntityClass
 import org.jetbrains.exposed.v1.jdbc.JdbcTransaction
 import org.jetbrains.exposed.v1.jdbc.transactions.inTopLevelSuspendTransaction
+import org.slf4j.LoggerFactory
 import kotlin.uuid.Uuid
 
 @Serializable
@@ -42,15 +43,22 @@ suspend fun <T> withTransaction(block: suspend JdbcTransaction.() -> T): T = wit
     inTopLevelSuspendTransaction { block() }
 }
 
-suspend fun getUser(googleSub: String, email: String, firstName: String, lastName: String): User = withTransaction {
-    val existing = UserDAO.find { UsersTable.googleSub eq googleSub }.singleOrNull()
-    val dao = existing ?: UserDAO.new {
-        this.googleSub = googleSub
-        this.email = email
-        this.firstName = firstName
-        this.lastName = lastName
+private val log = LoggerFactory.getLogger("users")
+
+suspend fun getUser(googleSub: String, email: String, firstName: String, lastName: String): User {
+    var created = false
+    val user = withTransaction {
+        val existing = UserDAO.find { UsersTable.googleSub eq googleSub }.singleOrNull()
+        val dao = existing ?: UserDAO.new {
+            this.googleSub = googleSub
+            this.email = email
+            this.firstName = firstName
+            this.lastName = lastName
+        }.also { created = true }
+        daoToModel(dao)
     }
-    daoToModel(dao)
+    if (created) log.info("Inserted new user {}", user.publicId)
+    return user
 }
 
 fun daoToModel(dao: UserDAO) = User(
