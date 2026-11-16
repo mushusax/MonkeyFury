@@ -8,6 +8,8 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.dao.id.IntIdTable
 import org.jetbrains.exposed.v1.dao.IntEntity
 import org.jetbrains.exposed.v1.dao.IntEntityClass
+import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
+import org.jetbrains.exposed.v1.datetime.timestamp
 import org.jetbrains.exposed.v1.jdbc.JdbcTransaction
 import org.jetbrains.exposed.v1.jdbc.transactions.inTopLevelSuspendTransaction
 import org.slf4j.LoggerFactory
@@ -27,6 +29,7 @@ object UsersTable : IntIdTable("users") {
     val email = varchar("email", 320)
     val firstName = varchar("first_name", 100)
     val lastName = varchar("last_name", 100).default("")
+    val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)
 }
 
 class UserDAO(id: EntityID<Int>) : IntEntity(id) {
@@ -37,6 +40,7 @@ class UserDAO(id: EntityID<Int>) : IntEntity(id) {
     var email by UsersTable.email
     var firstName by UsersTable.firstName
     var lastName by UsersTable.lastName
+    val createdAt by UsersTable.createdAt
 }
 
 suspend fun <T> withTransaction(block: suspend JdbcTransaction.() -> T): T = withContext(Dispatchers.IO) {

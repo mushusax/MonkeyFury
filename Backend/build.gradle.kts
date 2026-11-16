@@ -26,6 +26,7 @@ dependencies {
     implementation(libs.exposed.core)
     implementation(libs.exposed.jdbc)
     implementation(libs.exposed.dao)
+    implementation(libs.exposed.kotlin.datetime)
     implementation(libs.sqlite.jdbc)
     implementation(ktorLibs.server.contentNegotiation)
     implementation(ktorLibs.server.auth)
