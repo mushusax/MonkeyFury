@@ -17,6 +17,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.mushusax.monkeyfury.ui.screen.DashboardScreen
+import com.mushusax.monkeyfury.ui.screen.GraphScreen
 import com.mushusax.monkeyfury.ui.screen.LoginScreen
 import com.mushusax.monkeyfury.ui.screen.TasksScreen
 import com.mushusax.monkeyfury.ui.theme.MonkeyFuryTheme
@@ -31,6 +32,9 @@ class MainActivity : ComponentActivity() {
 
     @Serializable
     object Tasks
+
+    @Serializable
+    object Graph
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -74,11 +78,16 @@ class MainActivity : ComponentActivity() {
                                 navController.navigate(route = Tasks)
                             }
 
+                            val onGraphClicked: () -> Unit = {
+                                navController.navigate(route = Graph)
+                            }
+
                             DashboardScreen(
                                 modifier = Modifier
                                     .fillMaxSize(),
                                 onLogout = onLogout,
-                                onTasksClicked = onTasksClicked
+                                onTasksClicked = onTasksClicked,
+                                onGraphClicked = onGraphClicked
                             )
                         }
                     }
@@ -92,6 +101,18 @@ class MainActivity : ComponentActivity() {
                                     .fillMaxSize()
                                     .navigationBarsPadding()
                                     .imePadding(),
+                            )
+                        }
+                    }
+                    composable<Graph> {
+                        Surface(
+                            modifier = Modifier.fillMaxSize(),
+                            color = MaterialTheme.colorScheme.background
+                        ) {
+                            GraphScreen(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .navigationBarsPadding()
                             )
                         }
                     }

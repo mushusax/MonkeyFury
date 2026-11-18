@@ -31,7 +31,8 @@ fun DashboardScreen(
     modifier: Modifier = Modifier,
     viewModel: DashboardViewModel = viewModel(factory = DashboardViewModel.Factory),
     onLogout: () -> Unit = {},
-    onTasksClicked: () -> Unit = {}
+    onTasksClicked: () -> Unit = {},
+    onGraphClicked: () -> Unit = {}
 ) {
     val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
     LaunchedEffect(currentUser) {
@@ -74,6 +75,16 @@ fun DashboardScreen(
                         .height(120.dp)
                         .aspectRatio(1f)
                         .padding(PaddingValues(16.dp)), text = "Users"
+                )
+            }
+            item {
+                DashboardButton(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(120.dp)
+                        .aspectRatio(1f)
+                        .padding(PaddingValues(16.dp)), text = "Graph",
+                    onClick = onGraphClicked
                 )
             }
         }
