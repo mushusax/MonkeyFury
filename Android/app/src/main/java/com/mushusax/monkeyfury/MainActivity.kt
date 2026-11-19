@@ -17,11 +17,11 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.mushusax.monkeyfury.ui.screen.ActivityCalendarScreen
+import com.mushusax.monkeyfury.ui.screen.ActivityListScreen
 import com.mushusax.monkeyfury.ui.screen.ActivityTrackingScreen
 import com.mushusax.monkeyfury.ui.screen.DailyReviewScreen
 import com.mushusax.monkeyfury.ui.screen.DashboardScreen
 import com.mushusax.monkeyfury.ui.screen.LoginScreen
-import com.mushusax.monkeyfury.ui.screen.TasksScreen
 import com.mushusax.monkeyfury.ui.theme.MonkeyFuryTheme
 import kotlinx.serialization.Serializable
 
@@ -33,13 +33,13 @@ class MainActivity : ComponentActivity() {
     object Dashboard
 
     @Serializable
-    object Tasks
-
-    @Serializable
     object ActivityTracking
 
     @Serializable
     object DailyReview
+
+    @Serializable
+    object ActivityList
 
     @Serializable
     object ActivityCalendar
@@ -90,10 +90,6 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
 
-                            val onTasksClicked: () -> Unit = {
-                                navController.navigate(route = Tasks)
-                            }
-
                             val onActivityTrackingClicked: () -> Unit = {
                                 navController.navigate(route = ActivityTracking)
                             }
@@ -102,21 +98,7 @@ class MainActivity : ComponentActivity() {
                                 modifier = Modifier
                                     .fillMaxSize(),
                                 onLogout = onLogout,
-                                onTasksClicked = onTasksClicked,
                                 onActivityTrackingClicked = onActivityTrackingClicked
-                            )
-                        }
-                    }
-                    composable<Tasks> {
-                        Surface(
-                            modifier = Modifier.fillMaxSize(),
-                            color = MaterialTheme.colorScheme.background
-                        ) {
-                            TasksScreen(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .navigationBarsPadding()
-                                    .imePadding(),
                             )
                         }
                     }
@@ -125,12 +107,13 @@ class MainActivity : ComponentActivity() {
                             modifier = Modifier.fillMaxSize(),
                             color = MaterialTheme.colorScheme.background
                         ) {
+                            // Activity screens handle system bar and keyboard padding themselves,
+                            // so their wallpaper can reach the screen edges
                             ActivityTrackingScreen(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .navigationBarsPadding(),
+                                modifier = Modifier.fillMaxSize(),
                                 onDailyReviewClicked = { navController.navigate(route = DailyReview) },
-                                onCalendarClicked = { navController.navigate(route = ActivityCalendar) }
+                                onCalendarClicked = { navController.navigate(route = ActivityCalendar) },
+                                onActivitiesClicked = { navController.navigate(route = ActivityList) }
                             )
                         }
                     }
@@ -139,12 +122,7 @@ class MainActivity : ComponentActivity() {
                             modifier = Modifier.fillMaxSize(),
                             color = MaterialTheme.colorScheme.background
                         ) {
-                            DailyReviewScreen(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .navigationBarsPadding()
-                                    .imePadding()
-                            )
+                            DailyReviewScreen(modifier = Modifier.fillMaxSize())
                         }
                     }
                     composable<ActivityCalendar> {
@@ -152,11 +130,15 @@ class MainActivity : ComponentActivity() {
                             modifier = Modifier.fillMaxSize(),
                             color = MaterialTheme.colorScheme.background
                         ) {
-                            ActivityCalendarScreen(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .navigationBarsPadding()
-                            )
+                            ActivityCalendarScreen(modifier = Modifier.fillMaxSize())
+                        }
+                    }
+                    composable<ActivityList> {
+                        Surface(
+                            modifier = Modifier.fillMaxSize(),
+                            color = MaterialTheme.colorScheme.background
+                        ) {
+                            ActivityListScreen(modifier = Modifier.fillMaxSize())
                         }
                     }
                 }

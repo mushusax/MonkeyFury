@@ -7,16 +7,21 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.mushusax.monkeyfury.MonkeyFuryApplication
 import com.mushusax.monkeyfury.data.User
+import com.mushusax.monkeyfury.data.repository.ActivityRepository
 import com.mushusax.monkeyfury.data.repository.UserRepository
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-class DashboardViewModel(val userRepository: UserRepository) : ViewModel() {
+class DashboardViewModel(
+    private val userRepository: UserRepository,
+    private val activityRepository: ActivityRepository
+) : ViewModel() {
 
     val currentUser: StateFlow<User?> = userRepository.currentUser
     fun logOut() {
         viewModelScope.launch {
             userRepository.logout()
+            activityRepository.clear()
         }
     }
 
@@ -25,7 +30,10 @@ class DashboardViewModel(val userRepository: UserRepository) : ViewModel() {
             initializer {
                 val app =
                     this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as MonkeyFuryApplication
-                DashboardViewModel(userRepository = app.userRepository)
+                DashboardViewModel(
+                    userRepository = app.userRepository,
+                    activityRepository = app.activityRepository
+                )
             }
         }
     }

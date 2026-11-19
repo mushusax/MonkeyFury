@@ -23,6 +23,9 @@ interface ActivityRepository {
     suspend fun getEntries(from: LocalDate, to: LocalDate): List<ActivityEntry>
     suspend fun saveEntry(activityId: String, date: LocalDate, value: Double): ActivityEntry
     suspend fun deleteEntry(activityId: String, date: LocalDate)
+
+    /** Forgets cached activities, e.g. on logout, so the next user never sees them. */
+    fun clear()
 }
 
 class ActivityApiException(val code: Int, message: String) : Exception(message)

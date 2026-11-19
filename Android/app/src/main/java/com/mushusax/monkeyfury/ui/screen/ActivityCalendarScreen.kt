@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -24,6 +25,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mushusax.monkeyfury.data.Activity
 import com.mushusax.monkeyfury.data.ActivityKind
+import com.mushusax.monkeyfury.ui.component.ActivityWallpaper
+import com.mushusax.monkeyfury.ui.component.ContentPanel
 import com.mushusax.monkeyfury.data.formatValue
 import com.mushusax.monkeyfury.data.hasGradeUnit
 import com.mushusax.monkeyfury.ui.component.CalendarHeatMap
@@ -48,43 +51,51 @@ fun ActivityCalendarScreen(
     // Start on the current month
     val pagerState = rememberPagerState(initialPage = months.lastIndex) { months.size }
 
-    Column(modifier = modifier.statusBarsPadding()) {
-        if (loading) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-        error?.let {
-            Row(
+    ActivityWallpaper(modifier = modifier) {
+        ContentPanel(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .padding(16.dp)
+        ) {
+            if (loading) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            error?.let {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(modifier = Modifier.weight(1f), text = it, color = MaterialTheme.colorScheme.error)
+                    TextButton(onClick = { viewModel.load() }) { Text("Retry") }
+                }
+            }
+            HorizontalPager(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(modifier = Modifier.weight(1f), text = it, color = MaterialTheme.colorScheme.error)
-                TextButton(onClick = { viewModel.load() }) { Text("Retry") }
-            }
-        }
-        HorizontalPager(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f),
-            state = pagerState
-        ) { page ->
-            val month = months[page]
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                item {
-                    Text(
-                        modifier = Modifier.padding(16.dp),
-                        text = month.format(MONTH_YEAR_FORMATTER),
-                        style = MaterialTheme.typography.titleLarge
-                    )
-                }
-                if (activities.isEmpty() && !loading) {
-                    item { Text("No activities yet. Add some from Activity Tracking.") }
-                }
-                items(items = activities, key = { it.publicId }) { activity ->
-                    ActivityMonth(activity = activity, month = month, values = values[activity.publicId].orEmpty())
+                    .weight(1f),
+                state = pagerState
+            ) { page ->
+                val month = months[page]
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    item {
+                        Text(
+                            modifier = Modifier.padding(16.dp),
+                            text = month.format(MONTH_YEAR_FORMATTER),
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                    }
+                    if (activities.isEmpty() && !loading) {
+                        item { Text("No activities yet. Add some from Activity Tracking.") }
+                    }
+                    items(items = activities, key = { it.publicId }) { activity ->
+                        ActivityMonth(activity = activity, month = month, values = values[activity.publicId].orEmpty())
+                    }
                 }
             }
         }

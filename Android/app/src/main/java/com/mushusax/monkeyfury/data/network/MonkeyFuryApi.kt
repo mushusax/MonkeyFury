@@ -31,6 +31,10 @@ interface MonkeyFuryApi {
     @POST("/auth/google")
     suspend fun loginWithGoogle(@Body body: GoogleLoginParams): Response<LoginResponse>
 
+    /** Ends every MonkeyFury session for the signed-in user; their JWTs stop working. */
+    @POST("/auth/logout")
+    suspend fun logout(): Response<Unit>
+
     @GET("/activities")
     suspend fun getActivities(): Response<List<Activity>>
 

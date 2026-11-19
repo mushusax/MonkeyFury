@@ -1,6 +1,5 @@
 package com.mushusax
 
-import com.auth0.jwt.JWT
 import com.mushusax.model.Activity
 import com.mushusax.model.ActivityEntry
 import com.mushusax.model.getUser
@@ -29,12 +28,8 @@ class ServerTest {
             startApplication()
             val jwt = JwtConfig(config)
             block { sub ->
-                val user = getUser(googleSub = sub, email = "$sub@example.com", firstName = sub, lastName = "")
-                JWT.create()
-                    .withIssuer(jwt.issuer)
-                    .withAudience(jwt.audience)
-                    .withSubject(user.publicId.toString())
-                    .sign(jwt.algorithm)
+                val login = getUser(googleSub = sub, email = "$sub@example.com", firstName = sub, lastName = "")
+                issueSessionToken(jwt, login.user.publicId, login.sessionVersion)
             }
         }
 
@@ -52,6 +47,36 @@ class ServerTest {
     @Test
     fun `activities require a session`() = withApp {
         assertEquals(HttpStatusCode.Unauthorized, client.get("/activities").status)
+    }
+
+    @Test
+    fun `logout ends every existing session but a new login works`() = withApp { tokenFor ->
+        val phone = tokenFor("frank")
+        val tablet = tokenFor("frank")
+        assertEquals(HttpStatusCode.OK, client.send(HttpMethod.Get, "/me", phone).status)
+
+        assertEquals(HttpStatusCode.NoContent, client.send(HttpMethod.Post, "/auth/logout", phone).status)
+        assertEquals(HttpStatusCode.Unauthorized, client.send(HttpMethod.Get, "/me", phone).status)
+        assertEquals(HttpStatusCode.Unauthorized, client.send(HttpMethod.Get, "/activities", tablet).status)
+        // Logging out again with the dead token is refused rather than bumping the version twice
+        assertEquals(HttpStatusCode.Unauthorized, client.send(HttpMethod.Post, "/auth/logout", phone).status)
+
+        val fresh = tokenFor("frank")
+        assertEquals(HttpStatusCode.OK, client.send(HttpMethod.Get, "/me", fresh).status)
+    }
+
+    @Test
+    fun `tokens without a session version are refused`() = withApp { tokenFor ->
+        tokenFor("gina")
+        val jwt = JwtConfig(ApplicationConfig("application.yaml"))
+        val publicId = client.send(HttpMethod.Get, "/me", tokenFor("gina")).bodyAsText()
+            .let { json.decodeFromString<com.mushusax.model.User>(it).publicId }
+        val legacy = com.auth0.jwt.JWT.create()
+            .withIssuer(jwt.issuer)
+            .withAudience(jwt.audience)
+            .withSubject(publicId.toString())
+            .sign(jwt.algorithm)
+        assertEquals(HttpStatusCode.Unauthorized, client.send(HttpMethod.Get, "/me", legacy).status)
     }
 
     @Test
@@ -95,10 +120,16 @@ class ServerTest {
     }
 
     @Test
-    fun `lower_is_better is added to an activities table created before it existed`() {
-        // The activities table as the first release created it
+    fun `new columns are added to tables created before they existed`() {
+        // The users and activities tables as earlier releases created them
         java.sql.DriverManager.getConnection("jdbc:sqlite:${dbFile.path}").use { connection ->
             connection.createStatement().use {
+                it.executeUpdate(
+                    "CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, public_id BLOB NOT NULL UNIQUE, " +
+                        "google_sub VARCHAR(255) NOT NULL UNIQUE, email VARCHAR(320) NOT NULL, " +
+                        "first_name VARCHAR(100) NOT NULL, last_name VARCHAR(100) DEFAULT '' NOT NULL, " +
+                        "created_at TEXT DEFAULT (CURRENT_TIMESTAMP) NOT NULL)"
+                )
                 it.executeUpdate(
                     "CREATE TABLE activities (id INTEGER PRIMARY KEY AUTOINCREMENT, public_id BLOB NOT NULL, " +
                         "user_public_id BLOB NOT NULL, name VARCHAR(100) NOT NULL, category VARCHAR(100) DEFAULT '' NOT NULL, " +

@@ -7,9 +7,11 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
 import com.mushusax.model.User
+import com.mushusax.model.endSessions
 import com.mushusax.model.getUser
 import io.ktor.http.*
 import io.ktor.server.application.*
+import io.ktor.server.auth.*
 import io.ktor.server.config.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
@@ -57,25 +59,39 @@ fun Application.configureAuth() {
                 return@post
             }
 
-            val user = getUser(
+            val login = getUser(
                 googleSub = payload.subject,
                 email = email,
                 firstName = payload["given_name"] as? String ?: payload["name"] as? String ?: "",
                 lastName = payload["family_name"] as? String ?: ""
             )
 
-            val token = JWT.create()
-                .withIssuer(jwt.issuer)
-                .withAudience(jwt.audience)
-                .withSubject(user.publicId.toString())
-                .withIssuedAt(Date())
-                .withExpiresAt(Date(System.currentTimeMillis() + jwt.validity.inWholeMilliseconds))
-                .sign(jwt.algorithm)
+            val token = issueSessionToken(jwt, login.user.publicId, login.sessionVersion)
+            call.respond(LoginResponse(token, login.user))
+        }
 
-            call.respond(LoginResponse(token, user))
+        authenticate("session") {
+            // Ends every session for this user, so all their tokens stop working
+            post("/auth/logout") {
+                endSessions(call.principal<UserSession>()!!.publicId)
+                call.respond(HttpStatusCode.NoContent)
+            }
         }
     }
 }
+
+/** The JWT claim holding the user's session version at the time the token was issued. */
+const val SESSION_VERSION_CLAIM = "sv"
+
+fun issueSessionToken(jwt: JwtConfig, publicId: Uuid, sessionVersion: Int): String =
+    JWT.create()
+        .withIssuer(jwt.issuer)
+        .withAudience(jwt.audience)
+        .withSubject(publicId.toString())
+        .withClaim(SESSION_VERSION_CLAIM, sessionVersion)
+        .withIssuedAt(Date())
+        .withExpiresAt(Date(System.currentTimeMillis() + jwt.validity.inWholeMilliseconds))
+        .sign(jwt.algorithm)
 
 private suspend fun verifyGoogleIdToken(verifier: GoogleIdTokenVerifier, idToken: String): GoogleIdToken.Payload? =
     withContext(Dispatchers.IO) {

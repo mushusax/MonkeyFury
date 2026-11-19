@@ -17,7 +17,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.io.IOException
 
-class ActivityTrackingViewModel(private val activityRepository: ActivityRepository) : ViewModel() {
+class ActivityListViewModel(private val activityRepository: ActivityRepository) : ViewModel() {
 
     val activities: StateFlow<List<Activity>> = activityRepository.activities
 
@@ -69,7 +69,7 @@ class ActivityTrackingViewModel(private val activityRepository: ActivityReposito
             initializer {
                 val app =
                     this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as MonkeyFuryApplication
-                ActivityTrackingViewModel(activityRepository = app.activityRepository)
+                ActivityListViewModel(activityRepository = app.activityRepository)
             }
         }
     }

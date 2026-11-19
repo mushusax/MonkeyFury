@@ -12,6 +12,7 @@ import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.plugins.statuspages.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
+import com.mushusax.model.sessionVersion
 import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
 import kotlin.uuid.Uuid
@@ -52,8 +53,11 @@ fun Application.configurePlugins() {
                     .withAudience(jwt.audience)
                     .build()
             )
+            // Valid only while the token's session version matches the user's; logout bumps it
             validate { credential ->
-                credential.subject?.let(Uuid::parseOrNull)?.let(::UserSession)
+                val publicId = credential.subject?.let(Uuid::parseOrNull) ?: return@validate null
+                val tokenVersion = credential.payload.getClaim(SESSION_VERSION_CLAIM).asInt() ?: return@validate null
+                if (sessionVersion(publicId) == tokenVersion) UserSession(publicId) else null
             }
             challenge { _, _ ->
                 call.respond(HttpStatusCode.Unauthorized)

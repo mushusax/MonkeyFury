@@ -1,9 +1,11 @@
 package com.mushusax.monkeyfury.ui.screen
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
@@ -36,6 +38,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mushusax.monkeyfury.data.Activity
 import com.mushusax.monkeyfury.data.ActivityKind
+import com.mushusax.monkeyfury.ui.component.ActivityWallpaper
+import com.mushusax.monkeyfury.ui.component.ContentPanel
 import com.mushusax.monkeyfury.ui.viewmodel.DailyReviewViewModel
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -66,88 +70,96 @@ fun DailyReviewScreen(
         if (dirty) pendingDate = target else viewModel.setDate(target)
     }
 
-    Column(modifier = modifier) {
-        Row(
+    ActivityWallpaper(modifier = modifier) {
+        ContentPanel(
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxSize()
                 .statusBarsPadding()
-                .padding(horizontal = 8.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .navigationBarsPadding()
+                .imePadding()
+                .padding(16.dp)
         ) {
-            IconButton(
-                modifier = Modifier.semantics { contentDescription = "Previous day" },
-                onClick = { goTo(date.minusDays(1)) }
-            ) { Text("◀") }
-            Text(
-                modifier = Modifier.weight(1f),
-                text = if (date == today) "Today, ${date.format(DATE_FORMATTER)}" else date.format(DATE_FORMATTER),
-                style = MaterialTheme.typography.titleLarge,
-                textAlign = TextAlign.Center
-            )
-            IconButton(
-                modifier = Modifier.semantics { contentDescription = "Next day" },
-                enabled = date.isBefore(today),
-                onClick = { goTo(date.plusDays(1)) }
-            ) { Text("▶") }
-        }
-        if (loading) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-        error?.let {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
+                    .padding(horizontal = 8.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(modifier = Modifier.weight(1f), text = it, color = MaterialTheme.colorScheme.error)
-                TextButton(onClick = { viewModel.load() }) { Text("Retry") }
+                IconButton(
+                    modifier = Modifier.semantics { contentDescription = "Previous day" },
+                    onClick = { goTo(date.minusDays(1)) }
+                ) { Text("◀") }
+                Text(
+                    modifier = Modifier.weight(1f),
+                    text = if (date == today) "Today, ${date.format(DATE_FORMATTER)}" else date.format(DATE_FORMATTER),
+                    style = MaterialTheme.typography.titleLarge,
+                    textAlign = TextAlign.Center
+                )
+                IconButton(
+                    modifier = Modifier.semantics { contentDescription = "Next day" },
+                    enabled = date.isBefore(today),
+                    onClick = { goTo(date.plusDays(1)) }
+                ) { Text("▶") }
             }
-        }
-
-        if (activities.isEmpty() && !loading && error == null) {
-            Text(
-                modifier = Modifier.padding(16.dp),
-                text = "No activities yet. Add some from Activity Tracking.",
-                style = MaterialTheme.typography.bodyLarge
-            )
-        }
-
-        LazyColumn(modifier = Modifier.weight(1f)) {
-            groupByCategory(activities).forEach { (category, items) ->
-                item(key = "header-$category") {
-                    Text(
-                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 4.dp),
-                        text = category,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-                items(items = items, key = { it.publicId }) { activity ->
-                    ReviewRow(
-                        activity = activity,
-                        input = inputs[activity.publicId] ?: "",
-                        error = rowErrors[activity.publicId],
-                        enabled = !loading,
-                        onInput = { viewModel.setInput(activity.publicId, it) }
-                    )
-                    HorizontalDivider()
+            if (loading) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            error?.let {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(modifier = Modifier.weight(1f), text = it, color = MaterialTheme.colorScheme.error)
+                    TextButton(onClick = { viewModel.load() }) { Text("Retry") }
                 }
             }
-        }
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Text(
-                modifier = Modifier.weight(1f),
-                text = if (dirty) "Unsaved changes" else message ?: "",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Button(enabled = dirty && !loading, onClick = { viewModel.save() }) { Text("Save") }
+            if (activities.isEmpty() && !loading && error == null) {
+                Text(
+                    modifier = Modifier.padding(16.dp),
+                    text = "No activities yet. Add some from Activity Tracking.",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
+
+            LazyColumn(modifier = Modifier.weight(1f)) {
+                groupByCategory(activities).forEach { (category, items) ->
+                    item(key = "header-$category") {
+                        Text(
+                            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 4.dp),
+                            text = category,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    items(items = items, key = { it.publicId }) { activity ->
+                        ReviewRow(
+                            activity = activity,
+                            input = inputs[activity.publicId] ?: "",
+                            error = rowErrors[activity.publicId],
+                            enabled = !loading,
+                            onInput = { viewModel.setInput(activity.publicId, it) }
+                        )
+                        HorizontalDivider()
+                    }
+                }
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    modifier = Modifier.weight(1f),
+                    text = if (dirty) "Unsaved changes" else message ?: "",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Button(enabled = dirty && !loading, onClick = { viewModel.save() }) { Text("Save") }
+            }
         }
     }
 

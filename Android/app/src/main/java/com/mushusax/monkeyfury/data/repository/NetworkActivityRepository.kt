@@ -48,6 +48,10 @@ class NetworkActivityRepository(private val api: MonkeyFuryApi) : ActivityReposi
         api.deleteEntry(activityId, date.toString()).checkSuccess()
     }
 
+    override fun clear() {
+        _activities.value = emptyList()
+    }
+
     private fun <T> Response<T>.bodyOrThrow(): T {
         checkSuccess()
         return body() ?: throw ActivityApiException(code(), "Empty response from server")

@@ -16,6 +16,6 @@ fun Application.configureExposed() {
     transaction {
         SchemaUtils.create(UsersTable, ActivitiesTable, ActivityEntriesTable)
         // create() skips tables that already exist, so columns added later are added here
-        SchemaUtils.addMissingColumnsStatements(ActivitiesTable).forEach { exec(it) }
+        SchemaUtils.addMissingColumnsStatements(UsersTable, ActivitiesTable).forEach { exec(it) }
     }
 }
