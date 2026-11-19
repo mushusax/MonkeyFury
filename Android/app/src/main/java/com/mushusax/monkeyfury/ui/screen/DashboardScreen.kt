@@ -32,7 +32,7 @@ fun DashboardScreen(
     viewModel: DashboardViewModel = viewModel(factory = DashboardViewModel.Factory),
     onLogout: () -> Unit = {},
     onTasksClicked: () -> Unit = {},
-    onGraphClicked: () -> Unit = {}
+    onActivityTrackingClicked: () -> Unit = {}
 ) {
     val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
     LaunchedEffect(currentUser) {
@@ -83,8 +83,8 @@ fun DashboardScreen(
                         .fillMaxWidth()
                         .height(120.dp)
                         .aspectRatio(1f)
-                        .padding(PaddingValues(16.dp)), text = "Graph",
-                    onClick = onGraphClicked
+                        .padding(PaddingValues(16.dp)), text = "Activity Tracking",
+                    onClick = onActivityTrackingClicked
                 )
             }
         }

@@ -6,6 +6,7 @@ import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
 import io.ktor.server.auth.jwt.*
+import io.ktor.server.plugins.*
 import io.ktor.server.plugins.calllogging.*
 import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.plugins.statuspages.*
@@ -26,6 +27,13 @@ fun Application.configurePlugins() {
     }
 
     install(StatusPages) {
+        // Malformed bodies and params; also thrown by require() checks in the model
+        exception<BadRequestException> { call, cause ->
+            call.respondText(cause.message ?: "Bad request", status = HttpStatusCode.BadRequest)
+        }
+        exception<IllegalArgumentException> { call, cause ->
+            call.respondText(cause.message ?: "Bad request", status = HttpStatusCode.BadRequest)
+        }
         exception<IllegalStateException> { call, cause ->
             call.respondText("App in illegal state as ${cause.message}", status = HttpStatusCode.InternalServerError)
         }

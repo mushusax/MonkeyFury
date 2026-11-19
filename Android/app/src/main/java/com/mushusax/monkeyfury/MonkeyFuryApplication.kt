@@ -3,6 +3,8 @@ package com.mushusax.monkeyfury
 import android.app.Application
 import com.mushusax.monkeyfury.data.GoogleAuthClient
 import com.mushusax.monkeyfury.data.network.MonkeyFuryApi
+import com.mushusax.monkeyfury.data.repository.ActivityRepository
+import com.mushusax.monkeyfury.data.repository.NetworkActivityRepository
 import com.mushusax.monkeyfury.data.repository.NetworkUserRepository
 import com.mushusax.monkeyfury.data.repository.UserRepository
 import kotlinx.serialization.json.Json
@@ -40,5 +42,9 @@ class MonkeyFuryApplication : Application() {
 
     val userRepository: UserRepository by lazy {
         NetworkUserRepository(api, googleAuthClient)
+    }
+
+    val activityRepository: ActivityRepository by lazy {
+        NetworkActivityRepository(api)
     }
 }

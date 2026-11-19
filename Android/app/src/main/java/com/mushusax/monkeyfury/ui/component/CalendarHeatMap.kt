@@ -30,12 +30,15 @@ private val DAY_FORMATTER = DateTimeFormatter.ofPattern("MMM d")
 
 @Composable
 fun CalendarHeatMap(
-    values: Map<LocalDate, Int>,
+    values: Map<LocalDate, Float>,
     modifier: Modifier = Modifier,
     month: YearMonth = YearMonth.now(),
-    maxValue: Int = 5,
+    // How strongly a recorded day is colored, from 0 (empty) to 1 (full); days with no value stay empty
+    intensity: (Float) -> Float = { it / 5f },
     cellSize: Dp = 32.dp,
-    cellSpacing: Dp = 4.dp
+    cellSpacing: Dp = 4.dp,
+    // How a day's value is read out by screen readers; days with no value read "no entry"
+    valueLabel: (Float) -> String = { it.toString() }
 ) {
     val emptyColor = MaterialTheme.colorScheme.surfaceVariant
     val fullColor = MaterialTheme.colorScheme.primary
@@ -48,17 +51,16 @@ fun CalendarHeatMap(
                     val dayIndex = row * COLUMNS + column
                     if (dayIndex < daysInMonth) {
                         val date = month.atDay(dayIndex + 1)
-                        val value = values[date] ?: 0
-                        val fraction = if (maxValue > 0) {
-                            (value.toFloat() / maxValue).coerceIn(0f, 1f)
-                        } else 0f
+                        val value = values[date]
+                        val fraction = value?.let(intensity)?.coerceIn(0f, 1f) ?: 0f
                         Box(
                             modifier = Modifier
                                 .size(cellSize)
                                 .clip(RoundedCornerShape(4.dp))
                                 .background(lerp(emptyColor, fullColor, fraction))
                                 .semantics {
-                                    contentDescription = "${date.format(DAY_FORMATTER)}: $value"
+                                    contentDescription =
+                                        "${date.format(DAY_FORMATTER)}: ${value?.let(valueLabel) ?: "no entry"}"
                                 }
                         )
                     } else {
@@ -76,7 +78,7 @@ fun CalendarHeatMapPreview() {
     val month = YearMonth.now()
     val random = Random(seed = 42)
     val sampleValues = (1..month.lengthOfMonth()).associate { day ->
-        month.atDay(day) to random.nextInt(0, 6)
+        month.atDay(day) to random.nextInt(0, 6).toFloat()
     }
     CalendarHeatMap(
         modifier = Modifier.padding(16.dp),

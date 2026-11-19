@@ -16,8 +16,10 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.mushusax.monkeyfury.ui.screen.ActivityCalendarScreen
+import com.mushusax.monkeyfury.ui.screen.ActivityTrackingScreen
+import com.mushusax.monkeyfury.ui.screen.DailyReviewScreen
 import com.mushusax.monkeyfury.ui.screen.DashboardScreen
-import com.mushusax.monkeyfury.ui.screen.GraphScreen
 import com.mushusax.monkeyfury.ui.screen.LoginScreen
 import com.mushusax.monkeyfury.ui.screen.TasksScreen
 import com.mushusax.monkeyfury.ui.theme.MonkeyFuryTheme
@@ -34,7 +36,13 @@ class MainActivity : ComponentActivity() {
     object Tasks
 
     @Serializable
-    object Graph
+    object ActivityTracking
+
+    @Serializable
+    object DailyReview
+
+    @Serializable
+    object ActivityCalendar
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -78,8 +86,8 @@ class MainActivity : ComponentActivity() {
                                 navController.navigate(route = Tasks)
                             }
 
-                            val onGraphClicked: () -> Unit = {
-                                navController.navigate(route = Graph)
+                            val onActivityTrackingClicked: () -> Unit = {
+                                navController.navigate(route = ActivityTracking)
                             }
 
                             DashboardScreen(
@@ -87,7 +95,7 @@ class MainActivity : ComponentActivity() {
                                     .fillMaxSize(),
                                 onLogout = onLogout,
                                 onTasksClicked = onTasksClicked,
-                                onGraphClicked = onGraphClicked
+                                onActivityTrackingClicked = onActivityTrackingClicked
                             )
                         }
                     }
@@ -104,12 +112,39 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                     }
-                    composable<Graph> {
+                    composable<ActivityTracking> {
                         Surface(
                             modifier = Modifier.fillMaxSize(),
                             color = MaterialTheme.colorScheme.background
                         ) {
-                            GraphScreen(
+                            ActivityTrackingScreen(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .navigationBarsPadding(),
+                                onDailyReviewClicked = { navController.navigate(route = DailyReview) },
+                                onCalendarClicked = { navController.navigate(route = ActivityCalendar) }
+                            )
+                        }
+                    }
+                    composable<DailyReview> {
+                        Surface(
+                            modifier = Modifier.fillMaxSize(),
+                            color = MaterialTheme.colorScheme.background
+                        ) {
+                            DailyReviewScreen(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .navigationBarsPadding()
+                                    .imePadding()
+                            )
+                        }
+                    }
+                    composable<ActivityCalendar> {
+                        Surface(
+                            modifier = Modifier.fillMaxSize(),
+                            color = MaterialTheme.colorScheme.background
+                        ) {
+                            ActivityCalendarScreen(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .navigationBarsPadding()
