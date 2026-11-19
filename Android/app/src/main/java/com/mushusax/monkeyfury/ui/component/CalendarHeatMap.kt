@@ -10,7 +10,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.lerp
@@ -38,10 +40,16 @@ fun CalendarHeatMap(
     cellSize: Dp = 32.dp,
     cellSpacing: Dp = 4.dp,
     // How a day's value is read out by screen readers; days with no value read "no entry"
-    valueLabel: (Float) -> String = { it.toString() }
+    valueLabel: (Float) -> String = { it.toString() },
+    // Today with no value is drawn in the tertiary color, as a reminder to fill it in
+    markMissingToday: Boolean = false,
+    // Past days with no value show "?" instead of looking like an empty (worst) day
+    markMissingPast: Boolean = false,
+    today: LocalDate = LocalDate.now()
 ) {
     val emptyColor = MaterialTheme.colorScheme.surfaceVariant
     val fullColor = MaterialTheme.colorScheme.primary
+    val pendingColor = MaterialTheme.colorScheme.tertiary
     val daysInMonth = month.lengthOfMonth()
 
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(cellSpacing)) {
@@ -53,16 +61,30 @@ fun CalendarHeatMap(
                         val date = month.atDay(dayIndex + 1)
                         val value = values[date]
                         val fraction = value?.let(intensity)?.coerceIn(0f, 1f) ?: 0f
+                        val pending = value == null && markMissingToday && date == today
+                        val unknown = value == null && markMissingPast && date.isBefore(today)
                         Box(
                             modifier = Modifier
                                 .size(cellSize)
                                 .clip(RoundedCornerShape(4.dp))
-                                .background(lerp(emptyColor, fullColor, fraction))
+                                .background(if (pending) pendingColor else lerp(emptyColor, fullColor, fraction))
                                 .semantics {
-                                    contentDescription =
-                                        "${date.format(DAY_FORMATTER)}: ${value?.let(valueLabel) ?: "no entry"}"
-                                }
-                        )
+                                    contentDescription = "${date.format(DAY_FORMATTER)}: " + when {
+                                        value != null -> valueLabel(value)
+                                        pending -> "not filled in yet"
+                                        else -> "no entry"
+                                    }
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (unknown) {
+                                Text(
+                                    text = "?",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
                     } else {
                         Spacer(modifier = Modifier.size(cellSize))
                     }

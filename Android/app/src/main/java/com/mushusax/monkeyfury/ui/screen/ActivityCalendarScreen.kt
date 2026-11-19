@@ -111,7 +111,9 @@ private fun ActivityMonth(activity: Activity, month: YearMonth, values: Map<Loca
             month = month,
             intensity = intensity,
             cellSize = 28.dp,
-            valueLabel = { activity.formatValue(it.toDouble()) }
+            valueLabel = { activity.formatValue(it.toDouble()) },
+            markMissingToday = true,
+            markMissingPast = true
         )
     }
 }

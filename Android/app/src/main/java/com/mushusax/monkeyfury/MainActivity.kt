@@ -68,7 +68,11 @@ class MainActivity : ComponentActivity() {
                                     .navigationBarsPadding()
                                     .imePadding(),
                                 onLogin = {
-                                    navController.navigate(route = Dashboard)
+                                    // Drop Login so Back on the Dashboard leaves the app
+                                    navController.navigate(route = Dashboard) {
+                                        popUpTo<Login> { inclusive = true }
+                                        launchSingleTop = true
+                                    }
                                 })
                         }
                     }
@@ -78,8 +82,12 @@ class MainActivity : ComponentActivity() {
                             color = MaterialTheme.colorScheme.background
                         ) {
                             val onLogout: () -> Unit = {
-                                navController.popBackStack()
-                                //viewModel.user = null
+                                // Clear the whole history and start over at Login. Unlike
+                                // popBackStack(), this can't leave the history empty (a blank screen)
+                                navController.navigate(route = Login) {
+                                    popUpTo(navController.graph.id) { inclusive = true }
+                                    launchSingleTop = true
+                                }
                             }
 
                             val onTasksClicked: () -> Unit = {
