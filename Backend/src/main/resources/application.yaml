@@ -7,6 +7,11 @@ ktor:
       - com.mushusax.ExposedKt.configureExposed
       - com.mushusax.AuthKt.configureAuth
       - com.mushusax.RoutingKt.configureRouting
+      - com.mushusax.ActivitiesKt.configureActivities
+
+database:
+  # foreign_keys=on: SQLite only enforces foreign keys when asked to
+  url: "jdbc:sqlite:app.db?foreign_keys=on"
 
 auth:
   google:
