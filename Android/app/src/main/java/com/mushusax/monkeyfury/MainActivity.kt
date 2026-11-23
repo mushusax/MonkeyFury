@@ -21,6 +21,7 @@ import com.mushusax.monkeyfury.ui.screen.ActivityListScreen
 import com.mushusax.monkeyfury.ui.screen.ActivityTrackingScreen
 import com.mushusax.monkeyfury.ui.screen.DailyReviewScreen
 import com.mushusax.monkeyfury.ui.screen.DashboardScreen
+import com.mushusax.monkeyfury.ui.screen.FlashcardScreen
 import com.mushusax.monkeyfury.ui.screen.LoginScreen
 import com.mushusax.monkeyfury.ui.theme.MonkeyFuryTheme
 import kotlinx.serialization.Serializable
@@ -43,6 +44,9 @@ class MainActivity : ComponentActivity() {
 
     @Serializable
     object ActivityCalendar
+
+    @Serializable
+    object Flashcard
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -98,7 +102,8 @@ class MainActivity : ComponentActivity() {
                                 modifier = Modifier
                                     .fillMaxSize(),
                                 onLogout = onLogout,
-                                onActivityTrackingClicked = onActivityTrackingClicked
+                                onActivityTrackingClicked = onActivityTrackingClicked,
+                                onFlashcardClicked = { navController.navigate(route = Flashcard) }
                             )
                         }
                     }
@@ -139,6 +144,14 @@ class MainActivity : ComponentActivity() {
                             color = MaterialTheme.colorScheme.background
                         ) {
                             ActivityListScreen(modifier = Modifier.fillMaxSize())
+                        }
+                    }
+                    composable<Flashcard> {
+                        Surface(
+                            modifier = Modifier.fillMaxSize(),
+                            color = MaterialTheme.colorScheme.background
+                        ) {
+                            FlashcardScreen(modifier = Modifier.fillMaxSize())
                         }
                     }
                 }

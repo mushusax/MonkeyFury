@@ -8,13 +8,15 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.mushusax.monkeyfury.MonkeyFuryApplication
 import com.mushusax.monkeyfury.data.User
 import com.mushusax.monkeyfury.data.repository.ActivityRepository
+import com.mushusax.monkeyfury.data.repository.FlashcardRepository
 import com.mushusax.monkeyfury.data.repository.UserRepository
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 class DashboardViewModel(
     private val userRepository: UserRepository,
-    private val activityRepository: ActivityRepository
+    private val activityRepository: ActivityRepository,
+    private val flashcardRepository: FlashcardRepository
 ) : ViewModel() {
 
     val currentUser: StateFlow<User?> = userRepository.currentUser
@@ -22,6 +24,7 @@ class DashboardViewModel(
         viewModelScope.launch {
             userRepository.logout()
             activityRepository.clear()
+            flashcardRepository.clear()
         }
     }
 
@@ -32,7 +35,8 @@ class DashboardViewModel(
                     this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as MonkeyFuryApplication
                 DashboardViewModel(
                     userRepository = app.userRepository,
-                    activityRepository = app.activityRepository
+                    activityRepository = app.activityRepository,
+                    flashcardRepository = app.flashcardRepository
                 )
             }
         }
