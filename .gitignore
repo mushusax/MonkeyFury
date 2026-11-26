@@ -7,3 +7,6 @@ captures/
 local.properties
 .idea/
 .gradle/
+
+# Local backend database: never commit
+Backend/app.db
