@@ -67,6 +67,10 @@ import kotlinx.coroutines.launch
 /** The Start and Reveal buttons' fill; Material 3 has no green, so it is set here. */
 private val StartGreen = Color(0xFF2E7D32)
 
+/** Black panels with white text, matching ContentPanel and the Dashboard buttons. */
+@Composable
+private fun blackCardColors() = CardDefaults.elevatedCardColors(containerColor = Color.Black, contentColor = Color.White)
+
 /** Height of the deck picker row and the study buttons; the pencil and Stop are squares of this size. */
 private val ControlSize = 64.dp
 
@@ -237,6 +241,7 @@ private fun DeckPickerRow(
         ElevatedCard(
             modifier = Modifier.weight(1f),
             shape = RoundedCornerShape(16.dp),
+            colors = blackCardColors(),
             onClick = onPickDeck
         ) {
             Row(
@@ -281,7 +286,7 @@ private fun DeckPickerRow(
 /** The studied card: its prompt, and its answer once [revealed]. Blank when [card] is null. */
 @Composable
 private fun StudyArea(modifier: Modifier, card: StudyCard?, revealed: Boolean) {
-    ElevatedCard(modifier = modifier, shape = RoundedCornerShape(16.dp)) {
+    ElevatedCard(modifier = modifier, shape = RoundedCornerShape(16.dp), colors = blackCardColors()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -359,7 +364,7 @@ private fun ControlButton(
     text: String,
     modifier: Modifier,
     onClick: () -> Unit,
-    colors: CardColors = CardDefaults.elevatedCardColors(),
+    colors: CardColors = blackCardColors(),
     enabled: Boolean = true
 ) {
     ElevatedCard(

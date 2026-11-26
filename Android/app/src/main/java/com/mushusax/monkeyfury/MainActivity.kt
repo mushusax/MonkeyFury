@@ -18,7 +18,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.mushusax.monkeyfury.ui.screen.ActivityCalendarScreen
 import com.mushusax.monkeyfury.ui.screen.ActivityListScreen
-import com.mushusax.monkeyfury.ui.screen.ActivityTrackingScreen
 import com.mushusax.monkeyfury.ui.screen.DailyReviewScreen
 import com.mushusax.monkeyfury.ui.screen.DashboardScreen
 import com.mushusax.monkeyfury.ui.screen.FlashcardScreen
@@ -32,9 +31,6 @@ class MainActivity : ComponentActivity() {
 
     @Serializable
     object Dashboard
-
-    @Serializable
-    object ActivityTracking
 
     @Serializable
     object DailyReview
@@ -95,7 +91,7 @@ class MainActivity : ComponentActivity() {
                             }
 
                             val onActivityTrackingClicked: () -> Unit = {
-                                navController.navigate(route = ActivityTracking)
+                                navController.navigate(route = DailyReview)
                             }
 
                             DashboardScreen(
@@ -107,27 +103,22 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                     }
-                    composable<ActivityTracking> {
+                    composable<DailyReview> {
                         Surface(
                             modifier = Modifier.fillMaxSize(),
                             color = MaterialTheme.colorScheme.background
                         ) {
                             // Activity screens handle system bar and keyboard padding themselves,
                             // so their wallpaper can reach the screen edges
-                            ActivityTrackingScreen(
+                            DailyReviewScreen(
                                 modifier = Modifier.fillMaxSize(),
-                                onDailyReviewClicked = { navController.navigate(route = DailyReview) },
-                                onCalendarClicked = { navController.navigate(route = ActivityCalendar) },
-                                onActivitiesClicked = { navController.navigate(route = ActivityList) }
+                                onDateClicked = {
+                                    navController.navigate(route = ActivityCalendar) { launchSingleTop = true }
+                                },
+                                onEditActivitiesClicked = {
+                                    navController.navigate(route = ActivityList) { launchSingleTop = true }
+                                }
                             )
-                        }
-                    }
-                    composable<DailyReview> {
-                        Surface(
-                            modifier = Modifier.fillMaxSize(),
-                            color = MaterialTheme.colorScheme.background
-                        ) {
-                            DailyReviewScreen(modifier = Modifier.fillMaxSize())
                         }
                     }
                     composable<ActivityCalendar> {

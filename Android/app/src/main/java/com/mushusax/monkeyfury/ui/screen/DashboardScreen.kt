@@ -19,6 +19,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.mushusax.monkeyfury.R
 import com.mushusax.monkeyfury.ui.component.ActivityWallpaper
 import com.mushusax.monkeyfury.ui.component.DashboardButton
 import com.mushusax.monkeyfury.ui.viewmodel.DashboardViewModel
@@ -53,6 +54,7 @@ fun DashboardScreen(
                         .height(120.dp)
                         .aspectRatio(1f)
                         .padding(PaddingValues(16.dp)), text = "Activity Tracking",
+                    animation = R.raw.run_forrest_run,
                     onClick = onActivityTrackingClicked
                 )
             }
