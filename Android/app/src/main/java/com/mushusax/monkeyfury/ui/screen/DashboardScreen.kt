@@ -65,6 +65,7 @@ fun DashboardScreen(
                         .height(120.dp)
                         .aspectRatio(1f)
                         .padding(PaddingValues(16.dp)), text = "Flashcard",
+                    animation = R.raw.ai_brain,
                     onClick = onFlashcardClicked
                 )
             }
