@@ -8,5 +8,6 @@ local.properties
 .idea/
 .gradle/
 
-# Local backend database: never commit
+# Local backend database and its backups: never commit
 Backend/app.db
+Backend/*.db.bak
