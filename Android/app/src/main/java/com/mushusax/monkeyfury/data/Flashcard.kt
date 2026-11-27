@@ -11,8 +11,9 @@ object StudyConfig {
     const val NEW_CARDS_PER_DAY = 20
 
     /**
-     * Learning and relearning cards due within this long count as due now, so a card answered
-     * Again or Hard comes back in the same session instead of ending it early.
+     * Learning and relearning cards due within this long count as due, so a card answered Again
+     * or Hard comes back in the same session instead of ending it early. They're shown after
+     * every other due card, so they still wait out their step when there's more to study.
      */
     val LEARN_AHEAD_MS = 20.minutes.inWholeMilliseconds
 }

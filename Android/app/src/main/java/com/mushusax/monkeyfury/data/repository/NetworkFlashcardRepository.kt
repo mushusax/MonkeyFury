@@ -163,14 +163,18 @@ class NetworkFlashcardRepository(
         }
     }
 
+    /**
+     * Started cards that are due, then new cards, then learning cards due soon. The soon ones go
+     * last so a card answered Again or Hard waits out its step while other cards are shown, and
+     * only comes back early once nothing else is left.
+     */
     private fun dueCards(candidates: List<Card>, now: Long): List<Card> {
-        val started = candidates
+        val started = candidates.filter { it.state != CardState.NEW }
+        val dueNow = started.filter { it.due <= now }.sortedBy { it.due }
+        val learningSoon = started
             .filter {
-                when (it.state) {
-                    CardState.NEW -> false
-                    CardState.LEARNING, CardState.RELEARNING -> it.due <= now + StudyConfig.LEARN_AHEAD_MS
-                    CardState.REVIEW -> it.due <= now
-                }
+                (it.state == CardState.LEARNING || it.state == CardState.RELEARNING) &&
+                        it.due > now && it.due <= now + StudyConfig.LEARN_AHEAD_MS
             }
             .sortedBy { it.due }
 
@@ -183,7 +187,7 @@ class NetworkFlashcardRepository(
             .filter { it.state == CardState.NEW }
             .sortedBy { it.due }
             .take(newLimit)
-        return started + new
+        return dueNow + new + learningSoon
     }
 
     private fun toStudyCard(card: Card): StudyCard {
