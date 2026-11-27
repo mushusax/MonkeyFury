@@ -62,6 +62,8 @@ class FlashcardViewModel(private val flashcardRepository: FlashcardRepository) :
     val error: StateFlow<String?> = _error.asStateFlow()
 
     init {
+        // A new ViewModel per visit, so this fetches every time the Flashcard screen is opened
+        refreshDecks()
         viewModelScope.launch {
             // Reload whenever the selection changes; a newer selection cancels an older load
             selectedDeck.map { it?.publicId }.distinctUntilChanged().collectLatest { id ->
@@ -110,6 +112,13 @@ class FlashcardViewModel(private val flashcardRepository: FlashcardRepository) :
 
     fun stopEditing() {
         _editing.value = false
+    }
+
+    /** Fetches every deck, note and card from the server, then the selected deck's notes. */
+    fun refreshDecks() = run {
+        flashcardRepository.refreshDecks()
+        // The selection may be the same deck as before the fetch, which wouldn't trigger a reload
+        deckWithId(decks.value, selectedDeckId.value)?.let { reloadNotes(it.publicId) }
     }
 
     fun refresh() = run { selectedDeck.value?.let { reloadNotes(it.publicId) } }

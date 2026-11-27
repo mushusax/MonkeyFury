@@ -78,6 +78,14 @@ data class Card(
     val updatedAt: Long
 )
 
+/** The body of GET /flashcards: every deck the user owns, with all of its notes and cards. */
+@Serializable
+data class FlashcardData(
+    val decks: List<Deck>,
+    val notes: List<Note>,
+    val cards: List<Card>
+)
+
 /** One answer. Only ever added, never edited. */
 @Serializable
 data class ReviewLog(

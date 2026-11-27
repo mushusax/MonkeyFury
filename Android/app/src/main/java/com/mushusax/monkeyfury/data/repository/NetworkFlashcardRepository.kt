@@ -12,6 +12,7 @@ import com.mushusax.monkeyfury.data.NoteParams
 import com.mushusax.monkeyfury.data.Rating
 import com.mushusax.monkeyfury.data.ReviewLog
 import com.mushusax.monkeyfury.data.StudyCard
+import com.mushusax.monkeyfury.data.network.MonkeyFuryApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,11 +23,11 @@ import java.time.ZoneId
 import java.util.UUID
 
 /**
- * TEMPORARY: until the flashcard endpoints exist, everything lives in memory, starting empty.
- * Changes are lost when the app process ends. Replace the bodies with MonkeyFuryApi calls
- * once the endpoints are in place.
+ * [refreshDecks] loads everything from GET /flashcards. TEMPORARY: the other changes stay in
+ * memory until their endpoints exist, so they're lost on the next refresh or when the app closes.
  */
 class NetworkFlashcardRepository(
+    private val api: MonkeyFuryApi,
     private val scheduler: FsrsScheduler = FsrsScheduler(),
     private val zone: ZoneId = ZoneId.systemDefault()
 ) : FlashcardRepository {
@@ -41,7 +42,21 @@ class NetworkFlashcardRepository(
     private val reviewLogs = mutableListOf<ReviewLog>()
 
     override suspend fun refreshDecks() {
-        // Nothing to fetch while the data is in memory
+        val response = api.getFlashcards()
+        if (!response.isSuccessful) {
+            val detail = response.errorBody()?.string()?.takeIf { it.isNotBlank() } ?: response.message()
+            throw ActivityApiException(response.code(), detail.ifBlank { "Server error ${response.code()}" })
+        }
+        val data = response.body() ?: throw ActivityApiException(response.code(), "Empty response from server")
+        mutex.withLock {
+            notes.clear()
+            notes += data.notes
+            cards.clear()
+            cards += data.cards
+            // Review logs aren't served yet, so only answers given since this load count toward today's new cards
+            reviewLogs.clear()
+            _decks.value = data.decks
+        }
     }
 
     override suspend fun createDeck(params: DeckParams): Deck = mutex.withLock {

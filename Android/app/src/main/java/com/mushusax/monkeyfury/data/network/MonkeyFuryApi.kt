@@ -4,6 +4,7 @@ import com.mushusax.monkeyfury.data.Activity
 import com.mushusax.monkeyfury.data.ActivityEntry
 import com.mushusax.monkeyfury.data.ActivityParams
 import com.mushusax.monkeyfury.data.EntryValueParams
+import com.mushusax.monkeyfury.data.FlashcardData
 import com.mushusax.monkeyfury.data.User
 import kotlinx.serialization.Serializable
 import retrofit2.Response
@@ -60,4 +61,8 @@ interface MonkeyFuryApi {
 
     @DELETE("/activities/{id}/entries/{date}")
     suspend fun deleteEntry(@Path("id") id: String, @Path("date") date: String): Response<Unit>
+
+    /** Every deck the signed-in user owns, with all of its notes and cards. */
+    @GET("/flashcards")
+    suspend fun getFlashcards(): Response<FlashcardData>
 }

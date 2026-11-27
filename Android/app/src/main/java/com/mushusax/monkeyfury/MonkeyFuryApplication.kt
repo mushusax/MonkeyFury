@@ -51,6 +51,6 @@ class MonkeyFuryApplication : Application() {
     }
 
     val flashcardRepository: FlashcardRepository by lazy {
-        NetworkFlashcardRepository()
+        NetworkFlashcardRepository(api)
     }
 }

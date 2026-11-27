@@ -2,7 +2,15 @@ package com.mushusax
 
 import com.mushusax.model.Activity
 import com.mushusax.model.ActivityEntry
+import com.mushusax.model.CardDirection
+import com.mushusax.model.CardsTable
+import com.mushusax.model.DecksTable
+import com.mushusax.model.FlashcardData
+import com.mushusax.model.NotesTable
+import com.mushusax.model.User
 import com.mushusax.model.getUser
+import com.mushusax.model.withTransaction
+import org.jetbrains.exposed.v1.jdbc.insertAndGetId
 import io.ktor.client.HttpClient
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -194,5 +202,41 @@ class ServerTest {
             HttpStatusCode.BadRequest,
             client.send(HttpMethod.Get, "/activities/entries?from=nope&to=2026-11-01", token).status
         )
+    }
+
+    @Test
+    fun `flashcards are returned only to their owner`() = withApp { tokenFor ->
+        val owner = tokenFor("hana")
+        val other = tokenFor("ivan")
+        val ownerId = json.decodeFromString<User>(client.send(HttpMethod.Get, "/me", owner).bodyAsText()).publicId
+        withTransaction {
+            val deck = DecksTable.insertAndGetId {
+                it[userPublicId] = ownerId
+                it[name] = "Example Deck"
+            }
+            val note = NotesTable.insertAndGetId {
+                it[deckId] = deck
+                it[front] = "Example Card 1"
+                it[back] = "Example Answer 1"
+            }
+            CardsTable.insertAndGetId {
+                it[noteId] = note
+                it[direction] = CardDirection.FORWARD
+            }
+        }
+
+        val response = client.send(HttpMethod.Get, "/flashcards", owner)
+        assertEquals(HttpStatusCode.OK, response.status)
+        val data = json.decodeFromString<FlashcardData>(response.bodyAsText())
+        val deck = data.decks.single()
+        val note = data.notes.single()
+        assertEquals("Example Deck", deck.name)
+        assertEquals(deck.publicId, note.deckId)
+        assertEquals("Example Card 1", note.front)
+        assertEquals(note.publicId, data.cards.single().noteId)
+
+        val empty = json.decodeFromString<FlashcardData>(client.send(HttpMethod.Get, "/flashcards", other).bodyAsText())
+        assertTrue(empty.decks.isEmpty() && empty.notes.isEmpty() && empty.cards.isEmpty())
+        assertEquals(HttpStatusCode.Unauthorized, client.get("/flashcards").status)
     }
 }
