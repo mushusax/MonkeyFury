@@ -29,11 +29,18 @@ interface FlashcardRepository {
 
     /**
      * Cards to study at [now]: every started card that is due, soonest first, then never-studied
-     * cards up to what's left of today's new-card limit. [deckId] null means every deck.
+     * cards up to what's left of today's new-card limit. Learning cards due within
+     * StudyConfig.LEARN_AHEAD_MS count as due. [deckId] null means every deck.
      */
     suspend fun getDueCards(deckId: String?, now: Long = System.currentTimeMillis()): List<StudyCard>
 
-    /** Records an answer and reschedules the card. */
+    /**
+     * Every card [getDueCards] leaves out: started cards not yet due, then never-studied cards past
+     * today's limit, soonest due first. For studying beyond the schedule.
+     */
+    suspend fun getCardsAhead(deckId: String?, now: Long = System.currentTimeMillis()): List<StudyCard>
+
+    /** Sends the answer to the server, which reschedules the card with FSRS and logs it. */
     suspend fun answerCard(cardId: String, rating: Rating, now: Long = System.currentTimeMillis()): Card
 
     /** Forgets cached data, e.g. on logout, so the next user never sees it. */

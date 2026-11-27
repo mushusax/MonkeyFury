@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -55,13 +56,13 @@ import com.mushusax.monkeyfury.R
 import com.mushusax.monkeyfury.data.Deck
 import com.mushusax.monkeyfury.data.Note
 import com.mushusax.monkeyfury.data.Rating
-import com.mushusax.monkeyfury.data.StudyCard
 import com.mushusax.monkeyfury.data.answerRatings
 import com.mushusax.monkeyfury.ui.component.ActivityWallpaper
 import com.mushusax.monkeyfury.ui.component.ContentPanel
 import com.mushusax.monkeyfury.ui.component.NoteEditDialog
 import com.mushusax.monkeyfury.ui.component.edit
 import com.mushusax.monkeyfury.ui.viewmodel.FlashcardViewModel
+import com.mushusax.monkeyfury.ui.viewmodel.StudySession
 import kotlinx.coroutines.launch
 
 /** The Start and Reveal buttons' fill; Material 3 has no green, so it is set here. */
@@ -90,7 +91,7 @@ fun FlashcardScreen(
     val notes by viewModel.notes.collectAsStateWithLifecycle()
     val loading by viewModel.loading.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
-    val studyCard by viewModel.studyCard.collectAsStateWithLifecycle()
+    val session by viewModel.session.collectAsStateWithLifecycle()
     val revealed by viewModel.revealed.collectAsStateWithLifecycle()
 
     var deckSheetOpen by remember { mutableStateOf(false) }
@@ -107,7 +108,7 @@ fun FlashcardScreen(
     // Back leaves edit mode before it leaves the screen
     BackHandler(enabled = editing) { viewModel.stopEditing() }
     // Back also stops studying before it leaves the screen
-    BackHandler(enabled = studyCard != null) { viewModel.stopStudy() }
+    BackHandler(enabled = session != null) { viewModel.stopStudy() }
 
     ActivityWallpaper(modifier = modifier) {
         Column(
@@ -154,18 +155,19 @@ fun FlashcardScreen(
                         .weight(1f)
                         .fillMaxWidth()
                         .padding(start = 32.dp, end = 32.dp, top = 16.dp),
-                    card = studyCard,
+                    session = session,
                     revealed = revealed
                 )
 
                 // Same margins and 16dp gap as the buttons above
                 StudyControls(
-                    studyCard = studyCard,
+                    session = session,
                     revealed = revealed,
                     canStart = notes.isNotEmpty(),
                     onStart = viewModel::startStudy,
                     onReveal = viewModel::reveal,
                     onAnswer = viewModel::answer,
+                    onKeepStudying = viewModel::keepStudying,
                     onStop = viewModel::stopStudy
                 )
             }
@@ -283,9 +285,13 @@ private fun DeckPickerRow(
     }
 }
 
-/** The studied card: its prompt, and its answer once [revealed]. Blank when [card] is null. */
+/**
+ * The studied card: its prompt, and its answer once [revealed]. Says so when the session has run
+ * out of cards; blank when not studying.
+ */
 @Composable
-private fun StudyArea(modifier: Modifier, card: StudyCard?, revealed: Boolean) {
+private fun StudyArea(modifier: Modifier, session: StudySession?, revealed: Boolean) {
+    val card = session?.card
     ElevatedCard(modifier = modifier, shape = RoundedCornerShape(16.dp), colors = blackCardColors()) {
         Column(
             modifier = Modifier
@@ -294,6 +300,22 @@ private fun StudyArea(modifier: Modifier, card: StudyCard?, revealed: Boolean) {
             verticalArrangement = Arrangement.spacedBy(24.dp, Alignment.CenterVertically),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            if (session != null && card == null) {
+                Text(
+                    text = if (session.ahead) "You've studied every card in this deck" else "All caught up",
+                    style = MaterialTheme.typography.headlineSmall,
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    text = when {
+                        session.ahead -> "${session.reviewed} reviewed this session"
+                        session.reviewed == 0 -> "Nothing is due right now. Keep studying to review cards early."
+                        else -> "${session.reviewed} reviewed. Keep studying to review cards early."
+                    },
+                    style = MaterialTheme.typography.bodyLarge,
+                    textAlign = TextAlign.Center
+                )
+            }
             if (card != null) {
                 Text(
                     text = card.prompt,
@@ -316,19 +338,22 @@ private fun StudyArea(modifier: Modifier, card: StudyCard?, revealed: Boolean) {
 /**
  * The bottom row: Start; then Reveal and Stop; then, once revealed, the card's answers and Stop:
  * Easy, Hard and Again while it's new or learning, Good, Hard and Again in day-based review.
+ * When the due cards run out, Keep studying; when every card is done, Stop alone.
  * Stop is a square the size of the pencil, always in the bottom right while studying.
  */
 @Composable
 private fun StudyControls(
-    studyCard: StudyCard?,
+    session: StudySession?,
     revealed: Boolean,
     canStart: Boolean,
     onStart: () -> Unit,
     onReveal: () -> Unit,
     onAnswer: (Rating) -> Unit,
+    onKeepStudying: () -> Unit,
     onStop: () -> Unit
 ) {
-    val studying = studyCard != null
+    val studying = session != null
+    val studyCard = session?.card
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -339,6 +364,10 @@ private fun StudyControls(
         val green = CardDefaults.elevatedCardColors(containerColor = StartGreen, contentColor = Color.White)
         when {
             !studying -> ControlButton("Start", Modifier.weight(1f), onStart, colors = green, enabled = canStart)
+            studyCard == null ->
+                if (!session.ahead) ControlButton("Keep studying", Modifier.weight(1f), onKeepStudying, colors = green)
+                // Nothing left at all: Stop alone, still in the bottom right
+                else Spacer(modifier = Modifier.weight(1f))
             !revealed -> ControlButton("Reveal", Modifier.weight(1f), onReveal, colors = green)
             else -> studyCard.card.state.answerRatings.forEach { rating ->
                 ControlButton(rating.label, Modifier.weight(1f), onClick = { onAnswer(rating) })

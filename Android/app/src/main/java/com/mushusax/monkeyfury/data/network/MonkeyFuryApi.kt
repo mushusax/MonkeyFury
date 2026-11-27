@@ -3,8 +3,12 @@ package com.mushusax.monkeyfury.data.network
 import com.mushusax.monkeyfury.data.Activity
 import com.mushusax.monkeyfury.data.ActivityEntry
 import com.mushusax.monkeyfury.data.ActivityParams
+import com.mushusax.monkeyfury.data.AnswerParams
+import com.mushusax.monkeyfury.data.Card
 import com.mushusax.monkeyfury.data.EntryValueParams
 import com.mushusax.monkeyfury.data.FlashcardData
+import com.mushusax.monkeyfury.data.NoteParams
+import com.mushusax.monkeyfury.data.NoteResult
 import com.mushusax.monkeyfury.data.User
 import kotlinx.serialization.Serializable
 import retrofit2.Response
@@ -62,7 +66,22 @@ interface MonkeyFuryApi {
     @DELETE("/activities/{id}/entries/{date}")
     suspend fun deleteEntry(@Path("id") id: String, @Path("date") date: String): Response<Unit>
 
-    /** Every deck the signed-in user owns, with all of its notes and cards. */
+    /** Every deck the signed-in user owns, with all of its notes and cards. [zone] decides when today began. */
     @GET("/flashcards")
-    suspend fun getFlashcards(): Response<FlashcardData>
+    suspend fun getFlashcards(@Query("zone") zone: String): Response<FlashcardData>
+
+    /** Reschedules the card with FSRS on the server and logs the answer. */
+    @POST("/cards/{id}/answer")
+    suspend fun answerCard(@Path("id") id: String, @Body body: AnswerParams): Response<Card>
+
+    /** Creates the note's card, plus a reverse card when it's reversible. */
+    @POST("/decks/{id}/notes")
+    suspend fun createNote(@Path("id") deckId: String, @Body body: NoteParams): Response<NoteResult>
+
+    /** Keeps existing schedules; adds or deletes the reverse card when reversible changes. */
+    @PUT("/notes/{id}")
+    suspend fun updateNote(@Path("id") id: String, @Body body: NoteParams): Response<NoteResult>
+
+    @DELETE("/notes/{id}")
+    suspend fun deleteNote(@Path("id") id: String): Response<Unit>
 }

@@ -1,8 +1,21 @@
 package com.mushusax.monkeyfury.data
 
 import kotlinx.serialization.Serializable
+import kotlin.time.Duration.Companion.minutes
 
 // All timestamps are epoch milliseconds.
+
+/** Which cards a study session shows. FSRS itself, which schedules each answer, runs on the server. */
+object StudyConfig {
+    /** How many never-studied cards are introduced per day, across all decks. */
+    const val NEW_CARDS_PER_DAY = 20
+
+    /**
+     * Learning and relearning cards due within this long count as due now, so a card answered
+     * Again or Hard comes back in the same session instead of ending it early.
+     */
+    val LEARN_AHEAD_MS = 20.minutes.inWholeMilliseconds
+}
 
 @Serializable
 data class Deck(
@@ -42,9 +55,9 @@ enum class CardDirection { FORWARD, REVERSE }
 
 enum class CardState { NEW, LEARNING, REVIEW, RELEARNING }
 
-/** FSRS ratings. The study screen offers Easy, Hard and Again; [GOOD] is FSRS's plain "correct". */
-enum class Rating(val value: Int) {
-    AGAIN(1), HARD(2), GOOD(3), EASY(4);
+/** FSRS ratings. [GOOD] is FSRS's plain "correct". */
+enum class Rating {
+    AGAIN, HARD, GOOD, EASY;
 
     /** The button text: the rating's name, e.g. "Again". */
     val label: String get() = name.lowercase().replaceFirstChar { it.uppercase() }
@@ -83,21 +96,20 @@ data class Card(
 data class FlashcardData(
     val decks: List<Deck>,
     val notes: List<Note>,
-    val cards: List<Card>
+    val cards: List<Card>,
+    /** Never-studied cards answered for the first time today, in the zone the app sent. */
+    val newCardsToday: Int = 0
 )
 
-/** One answer. Only ever added, never edited. */
+/** The body of POST /cards/{id}/answer. */
 @Serializable
-data class ReviewLog(
-    val publicId: String,
-    val cardId: String,
-    val rating: Rating,
-    val reviewedAt: Long,
-    val stateBefore: CardState,
-    val elapsedDays: Double,
-    val scheduledDays: Double,
-    val stabilityAfter: Double,
-    val difficultyAfter: Double
+data class AnswerParams(val rating: Rating)
+
+/** What POST /decks/{id}/notes and PUT /notes/{id} return: the note and all of its cards after the change. */
+@Serializable
+data class NoteResult(
+    val note: Note,
+    val cards: List<Card>
 )
 
 /** A card ready to show, with its note's text resolved for the card's direction. */

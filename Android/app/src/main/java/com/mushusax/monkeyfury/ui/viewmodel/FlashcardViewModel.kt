@@ -25,7 +25,22 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-/** The Flashcard hub: which deck is selected, and editing that deck's cards in place. */
+/**
+ * One study session on a deck. [card] is the card showing, or null once there's nothing left:
+ * the due cards are done, or, when [ahead], every card in the deck has been studied too.
+ */
+data class StudySession(
+    val deckId: String,
+    val card: StudyCard? = null,
+    /** Answers given this session. */
+    val reviewed: Int = 0,
+    /** True after Keep studying: cards not yet due follow the due ones. */
+    val ahead: Boolean = false,
+    /** Cards answered while studying ahead, so each comes up once. */
+    val seenAhead: Set<String> = emptySet()
+)
+
+/** The Flashcard hub: which deck is selected, studying it, and editing its cards in place. */
 class FlashcardViewModel(private val flashcardRepository: FlashcardRepository) : ViewModel() {
 
     val decks: StateFlow<List<Deck>> = flashcardRepository.decks
@@ -44,12 +59,9 @@ class FlashcardViewModel(private val flashcardRepository: FlashcardRepository) :
     private val _notes = MutableStateFlow<List<Note>>(emptyList())
     val notes: StateFlow<List<Note>> = _notes.asStateFlow()
 
-    /**
-     * The card being studied, or null when not studying.
-     * TEMPORARY: always the deck's first card, until FSRS picks the cards.
-     */
-    private val _studyCard = MutableStateFlow<StudyCard?>(null)
-    val studyCard: StateFlow<StudyCard?> = _studyCard.asStateFlow()
+    /** The study session from Start until Stop, or null when not studying. */
+    private val _session = MutableStateFlow<StudySession?>(null)
+    val session: StateFlow<StudySession?> = _session.asStateFlow()
 
     /** Whether the studied card's back is showing. */
     private val _revealed = MutableStateFlow(false)
@@ -84,29 +96,38 @@ class FlashcardViewModel(private val flashcardRepository: FlashcardRepository) :
         _editing.value = true
     }
 
-    /**
-     * Shows the front of the deck's first card; does nothing if the deck has none. Answers aren't
-     * recorded yet, so this is always the same card, until FSRS picks the cards.
-     */
+    /** Starts a session on the selected deck's due cards, soonest first, as FSRS scheduled them. */
     fun startStudy() = run {
         val deckId = selectedDeck.value?.publicId ?: return@run
-        val card = flashcardRepository.getDueCards(deckId).firstOrNull() ?: return@run
-        // The deck may have changed while loading
-        if (selectedDeck.value?.publicId != deckId) return@run
-        _studyCard.value = card
-        _revealed.value = false
+        _session.value = StudySession(deckId = deckId)
+        showNextCard()
+    }
+
+    /** After the due cards run out: carries on with every other card in the deck, each once. */
+    fun keepStudying() = run {
+        _session.value = _session.value?.copy(ahead = true) ?: return@run
+        showNextCard()
     }
 
     fun reveal() {
-        if (_studyCard.value != null) _revealed.value = true
+        if (_session.value?.card != null) _revealed.value = true
     }
 
-    /** Every rating ends the round for now; FSRS will schedule the card from [rating] later. */
-    @Suppress("UNUSED_PARAMETER")
-    fun answer(rating: Rating) = stopStudy()
+    /** Reschedules the card with [rating], then shows the next one. */
+    fun answer(rating: Rating) = run {
+        val session = _session.value ?: return@run
+        val card = session.card ?: return@run
+        flashcardRepository.answerCard(card.card.publicId, rating)
+        if (_session.value !== session) return@run // Stopped or restarted while saving
+        _session.value = session.copy(
+            reviewed = session.reviewed + 1,
+            seenAhead = if (session.ahead) session.seenAhead + card.card.publicId else session.seenAhead
+        )
+        showNextCard()
+    }
 
     fun stopStudy() {
-        _studyCard.value = null
+        _session.value = null
         _revealed.value = false
     }
 
@@ -140,6 +161,23 @@ class FlashcardViewModel(private val flashcardRepository: FlashcardRepository) :
 
     fun clearError() {
         _error.value = null
+    }
+
+    /**
+     * Picks the session's next card: a due one first, which includes cards just answered Again or
+     * Hard once their short wait is up; then, when studying ahead, a card not yet seen this way.
+     * Leaves the card null when there's nothing left, which the screen shows as finished.
+     */
+    private suspend fun showNextCard() {
+        val session = _session.value ?: return
+        val next = flashcardRepository.getDueCards(session.deckId).firstOrNull()
+            ?: if (session.ahead) {
+                flashcardRepository.getCardsAhead(session.deckId).firstOrNull { it.card.publicId !in session.seenAhead }
+            } else null
+        // The session may have been stopped or changed while loading
+        if (_session.value?.deckId != session.deckId) return
+        _session.value = _session.value?.copy(card = next)
+        _revealed.value = false
     }
 
     private fun deckWithId(decks: List<Deck>, id: String?): Deck? =

@@ -1,34 +1,34 @@
 package com.mushusax.monkeyfury.data.repository
 
 import com.mushusax.monkeyfury.data.Card
-import com.mushusax.monkeyfury.data.CardDirection
 import com.mushusax.monkeyfury.data.CardState
 import com.mushusax.monkeyfury.data.Deck
 import com.mushusax.monkeyfury.data.DeckParams
-import com.mushusax.monkeyfury.data.FsrsConfig
-import com.mushusax.monkeyfury.data.FsrsScheduler
 import com.mushusax.monkeyfury.data.Note
 import com.mushusax.monkeyfury.data.NoteParams
+import com.mushusax.monkeyfury.data.NoteResult
 import com.mushusax.monkeyfury.data.Rating
-import com.mushusax.monkeyfury.data.ReviewLog
 import com.mushusax.monkeyfury.data.StudyCard
+import com.mushusax.monkeyfury.data.StudyConfig
+import com.mushusax.monkeyfury.data.AnswerParams
 import com.mushusax.monkeyfury.data.network.MonkeyFuryApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import retrofit2.Response
 import java.time.Instant
 import java.time.ZoneId
 import java.util.UUID
 
 /**
- * [refreshDecks] loads everything from GET /flashcards. TEMPORARY: the other changes stay in
- * memory until their endpoints exist, so they're lost on the next refresh or when the app closes.
+ * [refreshDecks] loads everything from GET /flashcards; note edits and answers are saved to the
+ * server, which runs FSRS. TEMPORARY: deck changes stay in memory until their endpoints exist, so
+ * they're lost on the next refresh or when the app closes.
  */
 class NetworkFlashcardRepository(
     private val api: MonkeyFuryApi,
-    private val scheduler: FsrsScheduler = FsrsScheduler(),
     private val zone: ZoneId = ZoneId.systemDefault()
 ) : FlashcardRepository {
 
@@ -39,22 +39,25 @@ class NetworkFlashcardRepository(
 
     private val notes = mutableListOf<Note>()
     private val cards = mutableListOf<Card>()
-    private val reviewLogs = mutableListOf<ReviewLog>()
+
+    /** The server's count of cards introduced today, and the start of the day it was counted for. */
+    private var newCardsAtLoad = 0
+    private var loadedDayStart = 0L
+
+    /** When cards were introduced since the last load, so the daily limit stays current without refetching. */
+    private val introducedSinceLoad = mutableListOf<Long>()
 
     override suspend fun refreshDecks() {
-        val response = api.getFlashcards()
-        if (!response.isSuccessful) {
-            val detail = response.errorBody()?.string()?.takeIf { it.isNotBlank() } ?: response.message()
-            throw ActivityApiException(response.code(), detail.ifBlank { "Server error ${response.code()}" })
-        }
-        val data = response.body() ?: throw ActivityApiException(response.code(), "Empty response from server")
+        val dayStart = startOfDay(System.currentTimeMillis())
+        val data = api.getFlashcards(zone.id).bodyOrThrow()
         mutex.withLock {
             notes.clear()
             notes += data.notes
             cards.clear()
             cards += data.cards
-            // Review logs aren't served yet, so only answers given since this load count toward today's new cards
-            reviewLogs.clear()
+            newCardsAtLoad = data.newCardsToday
+            loadedDayStart = dayStart
+            introducedSinceLoad.clear()
             _decks.value = data.decks
         }
     }
@@ -85,99 +88,115 @@ class NetworkFlashcardRepository(
         notes.filter { it.deckId == deckId }
     }
 
-    override suspend fun createNote(deckId: String, params: NoteParams): Note = mutex.withLock {
-        deck(deckId)
-        addNote(deckId, params.validated(), System.currentTimeMillis())
+    override suspend fun createNote(deckId: String, params: NoteParams): Note {
+        val result = api.createNote(deckId, params.validated()).bodyOrThrow()
+        mutex.withLock { store(result) }
+        return result.note
     }
 
-    override suspend fun updateNote(id: String, params: NoteParams): Note = mutex.withLock {
-        val p = params.validated()
-        val now = System.currentTimeMillis()
-        val updated = note(id).copy(front = p.front, back = p.back, reversible = p.reversible, updatedAt = now)
-        notes.replaceAll { if (it.publicId == id) updated else it }
-
-        val reverse = cards.find { it.noteId == id && it.direction == CardDirection.REVERSE }
-        if (p.reversible && reverse == null) {
-            cards += newCard(id, CardDirection.REVERSE, now)
-        } else if (!p.reversible && reverse != null) {
-            removeCard(reverse.publicId)
-        }
-        updated
+    override suspend fun updateNote(id: String, params: NoteParams): Note {
+        val result = api.updateNote(id, params.validated()).bodyOrThrow()
+        mutex.withLock { store(result) }
+        return result.note
     }
 
-    override suspend fun deleteNote(id: String) = mutex.withLock {
-        note(id)
-        removeNote(id)
+    override suspend fun deleteNote(id: String) {
+        api.deleteNote(id).checkSuccess()
+        mutex.withLock { removeNote(id) }
     }
 
     override suspend fun getDueCards(deckId: String?, now: Long): List<StudyCard> = mutex.withLock {
-        val deckNames = _decks.value.associate { it.publicId to it.name }
-        val notesById = notes.associateBy { it.publicId }
-        val candidates = cards.filter { card ->
-            val note = notesById[card.noteId] ?: return@filter false
-            deckId == null || note.deckId == deckId
-        }
-
-        val started = candidates
-            .filter { it.state != CardState.NEW && it.due <= now }
-            .sortedBy { it.due }
-
-        val startOfToday = Instant.ofEpochMilli(now).atZone(zone).toLocalDate().atStartOfDay(zone).toInstant().toEpochMilli()
-        val introducedToday = reviewLogs.count { it.stateBefore == CardState.NEW && it.reviewedAt >= startOfToday }
-        val newLimit = (FsrsConfig.NEW_CARDS_PER_DAY - introducedToday).coerceAtLeast(0)
-        val new = candidates
-            .filter { it.state == CardState.NEW }
-            .sortedBy { it.due }
-            .take(newLimit)
-
-        (started + new).map { card ->
-            val note = notesById.getValue(card.noteId)
-            StudyCard(card, note, deckNames[note.deckId] ?: "")
-        }
+        dueCards(candidates(deckId), now).map(::toStudyCard)
     }
 
-    override suspend fun answerCard(cardId: String, rating: Rating, now: Long): Card = mutex.withLock {
-        val card = cards.find { it.publicId == cardId } ?: throw IllegalArgumentException("Card not found")
-        val (updated, log) = scheduler.review(card, rating, now)
-        cards.replaceAll { if (it.publicId == cardId) updated else it }
-        reviewLogs += log
-        updated
+    override suspend fun getCardsAhead(deckId: String?, now: Long): List<StudyCard> = mutex.withLock {
+        val candidates = candidates(deckId)
+        val due = dueCards(candidates, now).map { it.publicId }.toSet()
+        // Started cards first, then new ones, so cards already being learned come back before fresh ones
+        candidates
+            .filter { it.publicId !in due }
+            .sortedWith(compareBy({ it.state == CardState.NEW }, { it.due }))
+            .map(::toStudyCard)
+    }
+
+    override suspend fun answerCard(cardId: String, rating: Rating, now: Long): Card {
+        val updated = api.answerCard(cardId, AnswerParams(rating)).bodyOrThrow()
+        mutex.withLock {
+            val before = cards.find { it.publicId == cardId }
+            if (before?.state == CardState.NEW) introducedSinceLoad += now
+            cards.replaceAll { if (it.publicId == cardId) updated else it }
+        }
+        return updated
     }
 
     override fun clear() {
         // The next user starts fresh
         notes.clear()
         cards.clear()
-        reviewLogs.clear()
+        newCardsAtLoad = 0
+        loadedDayStart = 0L
+        introducedSinceLoad.clear()
         _decks.value = emptyList()
     }
 
     // Callers hold the mutex, except clear, which empties everything at once
 
-    private fun deck(id: String) = _decks.value.find { it.publicId == id } ?: throw IllegalArgumentException("Deck not found")
-
-    private fun note(id: String) = notes.find { it.publicId == id } ?: throw IllegalArgumentException("Note not found")
-
-    private fun addNote(deckId: String, params: NoteParams, now: Long): Note {
-        val note = Note(newId(), deckId, params.front, params.back, params.reversible, createdAt = now, updatedAt = now)
-        notes += note
-        cards += newCard(note.publicId, CardDirection.FORWARD, now)
-        if (params.reversible) cards += newCard(note.publicId, CardDirection.REVERSE, now)
-        return note
+    /** The deck's cards, or every deck's when [deckId] is null. */
+    private fun candidates(deckId: String?): List<Card> {
+        val deckOf = notes.associate { it.publicId to it.deckId }
+        return cards.filter { card ->
+            val cardDeck = deckOf[card.noteId] ?: return@filter false
+            deckId == null || cardDeck == deckId
+        }
     }
 
-    private fun newCard(noteId: String, direction: CardDirection, now: Long) =
-        Card(publicId = newId(), noteId = noteId, direction = direction, due = now, updatedAt = now)
+    private fun dueCards(candidates: List<Card>, now: Long): List<Card> {
+        val started = candidates
+            .filter {
+                when (it.state) {
+                    CardState.NEW -> false
+                    CardState.LEARNING, CardState.RELEARNING -> it.due <= now + StudyConfig.LEARN_AHEAD_MS
+                    CardState.REVIEW -> it.due <= now
+                }
+            }
+            .sortedBy { it.due }
+
+        val startOfToday = startOfDay(now)
+        // The server's count only applies while it's still the day it was counted for
+        val introducedToday = (if (loadedDayStart == startOfToday) newCardsAtLoad else 0) +
+                introducedSinceLoad.count { it >= startOfToday }
+        val newLimit = (StudyConfig.NEW_CARDS_PER_DAY - introducedToday).coerceAtLeast(0)
+        val new = candidates
+            .filter { it.state == CardState.NEW }
+            .sortedBy { it.due }
+            .take(newLimit)
+        return started + new
+    }
+
+    private fun toStudyCard(card: Card): StudyCard {
+        val note = notes.first { it.publicId == card.noteId }
+        val deckName = _decks.value.find { it.publicId == note.deckId }?.name ?: ""
+        return StudyCard(card, note, deckName)
+    }
+
+    /** Replaces the note and its cards with what the server returned. */
+    private fun store(result: NoteResult) {
+        val id = result.note.publicId
+        if (notes.any { it.publicId == id }) notes.replaceAll { if (it.publicId == id) result.note else it } else notes += result.note
+        // Drops a reverse card the server deleted when reversible was turned off
+        cards.removeAll { it.noteId == id }
+        cards += result.cards
+    }
+
+    private fun deck(id: String) = _decks.value.find { it.publicId == id } ?: throw IllegalArgumentException("Deck not found")
 
     private fun removeNote(noteId: String) {
-        cards.filter { it.noteId == noteId }.forEach { removeCard(it.publicId) }
+        cards.removeAll { it.noteId == noteId }
         notes.removeAll { it.publicId == noteId }
     }
 
-    private fun removeCard(cardId: String) {
-        reviewLogs.removeAll { it.cardId == cardId }
-        cards.removeAll { it.publicId == cardId }
-    }
+    private fun startOfDay(now: Long) =
+        Instant.ofEpochMilli(now).atZone(zone).toLocalDate().atStartOfDay(zone).toInstant().toEpochMilli()
 
     private fun newId() = UUID.randomUUID().toString()
 
@@ -185,6 +204,18 @@ class NetworkFlashcardRepository(
         val name = name.trim()
         require(name.isNotEmpty()) { "Deck name is required" }
         return DeckParams(name, description.trim())
+    }
+
+    private fun <T> Response<T>.bodyOrThrow(): T {
+        checkSuccess()
+        return body() ?: throw ActivityApiException(code(), "Empty response from server")
+    }
+
+    private fun Response<*>.checkSuccess() {
+        if (!isSuccessful) {
+            val detail = errorBody()?.string()?.takeIf { it.isNotBlank() } ?: message()
+            throw ActivityApiException(code(), detail.ifBlank { "Server error ${code()}" })
+        }
     }
 
     private fun NoteParams.validated(): NoteParams {

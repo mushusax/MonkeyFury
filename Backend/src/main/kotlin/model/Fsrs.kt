@@ -1,6 +1,5 @@
-package com.mushusax.monkeyfury.data
+package com.mushusax.model
 
-import java.util.UUID
 import kotlin.math.exp
 import kotlin.math.max
 import kotlin.math.min
@@ -21,15 +20,19 @@ object FsrsConfig {
 
     const val MAXIMUM_INTERVAL_DAYS = 36_500
 
-    /** How many never-studied cards are introduced per day, across all decks. */
-    const val NEW_CARDS_PER_DAY = 20
-
     /** FSRS-5 default parameters. */
     val WEIGHTS = doubleArrayOf(
         0.40255, 1.18385, 3.173, 15.69105, 7.1949, 0.5345, 1.4604, 0.0046, 1.54575, 0.1192,
         1.01925, 1.9395, 0.11, 0.29605, 2.2698, 0.2315, 2.9898, 0.51655, 0.6621
     )
 }
+
+/** What a review log stores beyond the card's new state. */
+data class ReviewOutcome(
+    val stateBefore: CardState,
+    val elapsedDays: Double,
+    val scheduledDays: Double
+)
 
 private const val DAY_MS = 86_400_000.0
 private const val DECAY = -0.5
@@ -45,8 +48,8 @@ class FsrsScheduler(
     private val maximumIntervalDays: Int = FsrsConfig.MAXIMUM_INTERVAL_DAYS
 ) {
 
-    /** Returns the card after answering it with [rating] at [now], and the log of that answer. */
-    fun review(card: Card, rating: Rating, now: Long): Pair<Card, ReviewLog> {
+    /** Returns the card after answering it with [rating] at [now] (epoch ms), and what to log. */
+    fun review(card: Card, rating: Rating, now: Long): Pair<Card, ReviewOutcome> {
         val g = rating.value
         val elapsedDays = card.lastReview?.let { max(0L, now - it) / DAY_MS } ?: 0.0
 
@@ -87,18 +90,7 @@ class FsrsScheduler(
             lastReview = now,
             updatedAt = now
         )
-        val log = ReviewLog(
-            publicId = UUID.randomUUID().toString(),
-            cardId = card.publicId,
-            rating = rating,
-            reviewedAt = now,
-            stateBefore = card.state,
-            elapsedDays = elapsedDays,
-            scheduledDays = next.waitMs / DAY_MS,
-            stabilityAfter = stability,
-            difficultyAfter = difficulty
-        )
-        return updated to log
+        return updated to ReviewOutcome(card.state, elapsedDays, next.waitMs / DAY_MS)
     }
 
     private class Next(val state: CardState, val step: Int, val waitMs: Long)

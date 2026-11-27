@@ -2,15 +2,21 @@ package com.mushusax
 
 import com.mushusax.model.Activity
 import com.mushusax.model.ActivityEntry
+import com.mushusax.model.Card
 import com.mushusax.model.CardDirection
+import com.mushusax.model.CardState
+import com.mushusax.model.ReviewLogsTable
 import com.mushusax.model.CardsTable
 import com.mushusax.model.DecksTable
 import com.mushusax.model.FlashcardData
+import com.mushusax.model.NoteResult
 import com.mushusax.model.NotesTable
 import com.mushusax.model.User
 import com.mushusax.model.getUser
 import com.mushusax.model.withTransaction
+import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.insertAndGetId
+import org.jetbrains.exposed.v1.jdbc.selectAll
 import io.ktor.client.HttpClient
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -238,5 +244,138 @@ class ServerTest {
         val empty = json.decodeFromString<FlashcardData>(client.send(HttpMethod.Get, "/flashcards", other).bodyAsText())
         assertTrue(empty.decks.isEmpty() && empty.notes.isEmpty() && empty.cards.isEmpty())
         assertEquals(HttpStatusCode.Unauthorized, client.get("/flashcards").status)
+    }
+
+    /** Inserts an empty deck for the user behind [token] and returns its public id. */
+    private suspend fun ApplicationTestBuilder.insertDeck(token: String): String {
+        val userId = json.decodeFromString<User>(client.send(HttpMethod.Get, "/me", token).bodyAsText()).publicId
+        val deckId = withTransaction {
+            DecksTable.insertAndGetId {
+                it[userPublicId] = userId
+                it[name] = "Deck"
+            }
+        }
+        return withTransaction {
+            DecksTable.selectAll().where { DecksTable.id eq deckId }.single()[DecksTable.publicId].toString()
+        }
+    }
+
+    @Test
+    fun `notes are created, made reversible, made one-way, and deleted`() = withApp { tokenFor ->
+        val token = tokenFor("jun")
+        val deckId = insertDeck(token)
+
+        val created = client.send(
+            HttpMethod.Post, "/decks/$deckId/notes", token, """{"front":" perro ","back":"dog"}"""
+        )
+        assertEquals(HttpStatusCode.Created, created.status)
+        val note = json.decodeFromString<NoteResult>(created.bodyAsText())
+        assertEquals("perro", note.note.front)
+        assertEquals(listOf(CardDirection.FORWARD), note.cards.map { it.direction })
+
+        val reversible = client.send(
+            HttpMethod.Put, "/notes/${note.note.publicId}", token, """{"front":"perro","back":"dog","reversible":true}"""
+        )
+        val both = json.decodeFromString<NoteResult>(reversible.bodyAsText())
+        assertEquals(listOf(CardDirection.FORWARD, CardDirection.REVERSE), both.cards.map { it.direction })
+        // The forward card keeps its schedule
+        assertEquals(note.cards.single().publicId, both.cards.first().publicId)
+
+        val oneWay = client.send(
+            HttpMethod.Put, "/notes/${note.note.publicId}", token, """{"front":"perro","back":"the dog"}"""
+        )
+        val forwardOnly = json.decodeFromString<NoteResult>(oneWay.bodyAsText())
+        assertEquals("the dog", forwardOnly.note.back)
+        assertEquals(listOf(CardDirection.FORWARD), forwardOnly.cards.map { it.direction })
+
+        assertEquals(HttpStatusCode.NoContent, client.send(HttpMethod.Delete, "/notes/${note.note.publicId}", token).status)
+        val data = json.decodeFromString<FlashcardData>(client.send(HttpMethod.Get, "/flashcards", token).bodyAsText())
+        assertTrue(data.notes.isEmpty() && data.cards.isEmpty())
+        assertEquals(1, data.decks.size)
+    }
+
+    @Test
+    fun `users cannot add to or change each other's notes`() = withApp { tokenFor ->
+        val owner = tokenFor("kai")
+        val other = tokenFor("lea")
+        val deckId = insertDeck(owner)
+        val note = json.decodeFromString<NoteResult>(
+            client.send(HttpMethod.Post, "/decks/$deckId/notes", owner, """{"front":"a","back":"b"}""").bodyAsText()
+        ).note
+
+        assertEquals(
+            HttpStatusCode.NotFound,
+            client.send(HttpMethod.Post, "/decks/$deckId/notes", other, """{"front":"x","back":"y"}""").status
+        )
+        assertEquals(
+            HttpStatusCode.NotFound,
+            client.send(HttpMethod.Put, "/notes/${note.publicId}", other, """{"front":"x","back":"y"}""").status
+        )
+        assertEquals(HttpStatusCode.NotFound, client.send(HttpMethod.Delete, "/notes/${note.publicId}", other).status)
+    }
+
+    @Test
+    fun `blank card text and bad ids are rejected with 400`() = withApp { tokenFor ->
+        val token = tokenFor("mia")
+        val deckId = insertDeck(token)
+        assertEquals(
+            HttpStatusCode.BadRequest,
+            client.send(HttpMethod.Post, "/decks/$deckId/notes", token, """{"front":"  ","back":"b"}""").status
+        )
+        assertEquals(
+            HttpStatusCode.BadRequest,
+            client.send(HttpMethod.Put, "/notes/nope", token, """{"front":"a","back":"b"}""").status
+        )
+    }
+
+    @Test
+    fun `answering a card reschedules it with FSRS and logs the answer`() = withApp { tokenFor ->
+        val token = tokenFor("nora")
+        val deckId = insertDeck(token)
+        val card = json.decodeFromString<NoteResult>(
+            client.send(HttpMethod.Post, "/decks/$deckId/notes", token, """{"front":"a","back":"b"}""").bodyAsText()
+        ).cards.single()
+
+        // Good on a new card moves it to the second learning step, 10 minutes out
+        val good = client.send(HttpMethod.Post, "/cards/${card.publicId}/answer", token, """{"rating":"GOOD"}""")
+        assertEquals(HttpStatusCode.OK, good.status)
+        val learning = json.decodeFromString<Card>(good.bodyAsText())
+        assertEquals(CardState.LEARNING, learning.state)
+        assertEquals(1, learning.learningStep)
+        assertEquals(10 * 60_000L, learning.due - learning.lastReview!!)
+
+        // Easy graduates it to day-based review
+        val easy = client.send(HttpMethod.Post, "/cards/${card.publicId}/answer", token, """{"rating":"EASY"}""")
+        val review = json.decodeFromString<Card>(easy.bodyAsText())
+        assertEquals(CardState.REVIEW, review.state)
+        assertTrue(review.due - review.lastReview!! >= 86_400_000L)
+
+        // The schedule is saved, and the first answer counts as one new card today
+        val data = json.decodeFromString<FlashcardData>(
+            client.send(HttpMethod.Get, "/flashcards?zone=America/Chicago", token).bodyAsText()
+        )
+        assertEquals(review, data.cards.single())
+        assertEquals(1, data.newCardsToday)
+        assertEquals(2L, withTransaction { ReviewLogsTable.selectAll().count() })
+    }
+
+    @Test
+    fun `answers are refused for other users' cards and bad input`() = withApp { tokenFor ->
+        val owner = tokenFor("omar")
+        val other = tokenFor("pia")
+        val deckId = insertDeck(owner)
+        val card = json.decodeFromString<NoteResult>(
+            client.send(HttpMethod.Post, "/decks/$deckId/notes", owner, """{"front":"a","back":"b"}""").bodyAsText()
+        ).cards.single()
+
+        assertEquals(
+            HttpStatusCode.NotFound,
+            client.send(HttpMethod.Post, "/cards/${card.publicId}/answer", other, """{"rating":"GOOD"}""").status
+        )
+        assertEquals(
+            HttpStatusCode.BadRequest,
+            client.send(HttpMethod.Post, "/cards/${card.publicId}/answer", owner, """{"rating":"MAYBE"}""").status
+        )
+        assertEquals(HttpStatusCode.BadRequest, client.send(HttpMethod.Get, "/flashcards?zone=Mars/Base", owner).status)
     }
 }
