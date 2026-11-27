@@ -22,9 +22,9 @@ import java.time.ZoneId
 import java.util.UUID
 
 /**
- * TEMPORARY: until the flashcard endpoints exist, everything lives in memory, starting from
- * hardcoded sample decks. Changes are lost when the app process ends. Replace the bodies with
- * MonkeyFuryApi calls once the backend tables are in place.
+ * TEMPORARY: until the flashcard endpoints exist, everything lives in memory, starting empty.
+ * Changes are lost when the app process ends. Replace the bodies with MonkeyFuryApi calls
+ * once the endpoints are in place.
  */
 class NetworkFlashcardRepository(
     private val scheduler: FsrsScheduler = FsrsScheduler(),
@@ -39,10 +39,6 @@ class NetworkFlashcardRepository(
     private val notes = mutableListOf<Note>()
     private val cards = mutableListOf<Card>()
     private val reviewLogs = mutableListOf<ReviewLog>()
-
-    init {
-        loadSampleData()
-    }
 
     override suspend fun refreshDecks() {
         // Nothing to fetch while the data is in memory
@@ -134,11 +130,14 @@ class NetworkFlashcardRepository(
     }
 
     override fun clear() {
-        // Back to the sample decks; the next user starts fresh
-        loadSampleData()
+        // The next user starts fresh
+        notes.clear()
+        cards.clear()
+        reviewLogs.clear()
+        _decks.value = emptyList()
     }
 
-    // Callers hold the mutex, except init and clear, which replace everything at once
+    // Callers hold the mutex, except clear, which empties everything at once
 
     private fun deck(id: String) = _decks.value.find { it.publicId == id } ?: throw IllegalArgumentException("Deck not found")
 
@@ -179,61 +178,5 @@ class NetworkFlashcardRepository(
         require(front.isNotEmpty()) { "Front is required" }
         require(back.isNotEmpty()) { "Back is required" }
         return NoteParams(front, back, reversible)
-    }
-
-    private fun loadSampleData() {
-        notes.clear()
-        cards.clear()
-        reviewLogs.clear()
-        val now = System.currentTimeMillis()
-        val decks = mutableListOf<Deck>()
-
-        fun deck(name: String, description: String, vararg items: NoteParams) {
-            val deck = Deck(newId(), name, description, createdAt = now, updatedAt = now)
-            decks += deck
-            items.forEach { addNote(deck.publicId, it, now) }
-        }
-
-        deck(
-            "Spanish Words", "Vocabulary",
-            NoteParams("perro", "dog", reversible = true),
-            NoteParams("gato", "cat", reversible = true),
-            NoteParams("casa", "house", reversible = true),
-            NoteParams("agua", "water", reversible = true),
-            NoteParams("libro", "book", reversible = true)
-        )
-        deck(
-            "Spanish Sentences", "Everyday phrases",
-            NoteParams("¿Dónde está la biblioteca?", "Where is the library?", reversible = true),
-            NoteParams("Me gustaría un café, por favor.", "I would like a coffee, please.", reversible = true),
-            NoteParams("¿Cuánto cuesta?", "How much does it cost?", reversible = true)
-        )
-        deck(
-            "Spanish Lyrics", "Cielito Lindo (traditional): each line → the next",
-            NoteParams("De la Sierra Morena, cielito lindo,", "vienen bajando"),
-            NoteParams("un par de ojitos negros, cielito lindo,", "de contrabando"),
-            NoteParams("Ay, ay, ay, ay,", "canta y no llores")
-        )
-        deck(
-            "Historical Dates", "Event ↔ year",
-            NoteParams("Battle of Hastings", "1066", reversible = true),
-            NoteParams("US Declaration of Independence", "1776", reversible = true),
-            NoteParams("Apollo 11 Moon landing", "1969", reversible = true),
-            NoteParams("Fall of the Berlin Wall", "1989", reversible = true)
-        )
-        deck(
-            "Sports Players", "Player → team and number",
-            NoteParams("Michael Jordan", "Chicago Bulls, #23"),
-            NoteParams("Wayne Gretzky", "Edmonton Oilers, #99"),
-            NoteParams("Babe Ruth", "New York Yankees, #3")
-        )
-        deck(
-            "Unit Conversions", "Imperial ↔ metric",
-            NoteParams("1 mile", "1.609 km", reversible = true),
-            NoteParams("1 inch", "2.54 cm", reversible = true),
-            NoteParams("1 pound", "0.4536 kg", reversible = true),
-            NoteParams("1 US gallon", "3.785 L", reversible = true)
-        )
-        _decks.value = decks
     }
 }
