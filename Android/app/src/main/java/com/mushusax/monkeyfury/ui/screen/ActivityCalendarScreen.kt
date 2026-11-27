@@ -27,6 +27,8 @@ import com.mushusax.monkeyfury.data.Activity
 import com.mushusax.monkeyfury.data.ActivityKind
 import com.mushusax.monkeyfury.ui.component.ActivityWallpaper
 import com.mushusax.monkeyfury.ui.component.ContentPanel
+import com.mushusax.monkeyfury.data.formatDuration
+import com.mushusax.monkeyfury.data.formatNumber
 import com.mushusax.monkeyfury.data.formatValue
 import com.mushusax.monkeyfury.data.hasGradeUnit
 import com.mushusax.monkeyfury.ui.component.CalendarHeatMap
@@ -123,10 +125,18 @@ private fun ActivityMonth(activity: Activity, month: YearMonth, values: Map<Loca
             intensity = intensity,
             cellSize = 28.dp,
             valueLabel = { activity.formatValue(it.toDouble()) },
+            cellLabel = { activity.formatCellValue(it.toDouble()) },
             markMissingToday = true,
             markMissingPast = true
         )
     }
+}
+
+/** A day's value short enough for its square: "1:30", "V5", "Yes", or a number without its unit. */
+private fun Activity.formatCellValue(value: Double): String = when (kind) {
+    ActivityKind.BOOLEAN -> if (value > 0) "Yes" else "No"
+    ActivityKind.DURATION -> formatDuration(value)
+    ActivityKind.NUMBER -> if (hasGradeUnit) "$unit${formatNumber(value)}" else formatNumber(value)
 }
 
 /**

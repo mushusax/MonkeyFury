@@ -1,6 +1,7 @@
 package com.mushusax.monkeyfury.ui.component
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +13,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,12 +50,16 @@ fun CalendarHeatMap(
     markMissingToday: Boolean = false,
     // Past days with no value show "?" instead of looking like an empty (worst) day
     markMissingPast: Boolean = false,
+    // The short text shown in a tapped day; whole values drop the ".0"
+    cellLabel: (Float) -> String = ::formatCellValue,
     today: LocalDate = LocalDate.now()
 ) {
     val emptyColor = MaterialTheme.colorScheme.surfaceVariant
     val fullColor = MaterialTheme.colorScheme.primary
     val pendingColor = MaterialTheme.colorScheme.tertiary
     val daysInMonth = month.lengthOfMonth()
+    // The tapped day, whose value shows in its square; one at a time, and cleared on a new month
+    var shownDate by remember(month) { mutableStateOf<LocalDate?>(null) }
 
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(cellSpacing)) {
         for (row in 0 until ROWS) {
@@ -63,11 +72,16 @@ fun CalendarHeatMap(
                         val fraction = value?.let(intensity)?.coerceIn(0f, 1f) ?: 0f
                         val pending = value == null && markMissingToday && date == today
                         val unknown = value == null && markMissingPast && date.isBefore(today)
+                        val shown = value != null && date == shownDate
                         Box(
                             modifier = Modifier
                                 .size(cellSize)
                                 .clip(RoundedCornerShape(4.dp))
                                 .background(if (pending) pendingColor else lerp(emptyColor, fullColor, fraction))
+                                // Tapping shows the day's value; tapping it again, or an empty day, hides it
+                                .clickable(onClickLabel = "Show value") {
+                                    shownDate = if (shown || value == null) null else date
+                                }
                                 .semantics {
                                     contentDescription = "${date.format(DAY_FORMATTER)}: " + when {
                                         value != null -> valueLabel(value)
@@ -77,7 +91,16 @@ fun CalendarHeatMap(
                                 },
                             contentAlignment = Alignment.Center
                         ) {
-                            if (unknown) {
+                            if (shown) {
+                                Text(
+                                    text = cellLabel(value),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    // Light text on the fuller, darker squares; dark on the paler ones
+                                    color = if (fraction > 0.5f) MaterialTheme.colorScheme.onPrimary
+                                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1
+                                )
+                            } else if (unknown) {
                                 Text(
                                     text = "?",
                                     style = MaterialTheme.typography.labelMedium,
@@ -93,6 +116,10 @@ fun CalendarHeatMap(
         }
     }
 }
+
+/** 3 for 3.0, 2.5 for 2.5. */
+private fun formatCellValue(value: Float): String =
+    if (value % 1f == 0f) value.toInt().toString() else "%.1f".format(value)
 
 @Preview(showBackground = true)
 @Composable
