@@ -33,6 +33,7 @@ fun DashboardScreen(
     onFlashcardClicked: () -> Unit = {}
 ) {
     val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
+    val dueCardCount by viewModel.dueCardCount.collectAsStateWithLifecycle()
     LaunchedEffect(currentUser) {
         if (currentUser == null) onLogout()
     }
@@ -66,6 +67,7 @@ fun DashboardScreen(
                         .aspectRatio(1f)
                         .padding(PaddingValues(16.dp)), text = "Flashcard",
                     animation = R.raw.ai_brain,
+                    badge = dueCardCount,
                     onClick = onFlashcardClicked
                 )
             }

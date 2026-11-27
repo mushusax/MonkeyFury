@@ -356,6 +356,11 @@ class ServerTest {
         )
         assertEquals(review, data.cards.single())
         assertEquals(1, data.newCardsToday)
+        // Both answers land on today in the review calendar
+        val day = data.reviewDays.single()
+        assertEquals(deckId, day.deckId.toString())
+        assertEquals(java.time.LocalDate.now(java.time.ZoneId.of("America/Chicago")).toString(), day.date)
+        assertEquals(2, day.count)
         assertEquals(2L, withTransaction { ReviewLogsTable.selectAll().count() })
     }
 

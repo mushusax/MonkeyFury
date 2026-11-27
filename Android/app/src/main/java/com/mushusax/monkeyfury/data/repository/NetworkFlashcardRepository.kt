@@ -3,7 +3,7 @@ package com.mushusax.monkeyfury.data.repository
 import com.mushusax.monkeyfury.data.Card
 import com.mushusax.monkeyfury.data.CardState
 import com.mushusax.monkeyfury.data.Deck
-import com.mushusax.monkeyfury.data.DeckParams
+import com.mushusax.monkeyfury.data.DueCounts
 import com.mushusax.monkeyfury.data.Note
 import com.mushusax.monkeyfury.data.NoteParams
 import com.mushusax.monkeyfury.data.NoteResult
@@ -19,13 +19,12 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import retrofit2.Response
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
-import java.util.UUID
 
 /**
  * [refreshDecks] loads everything from GET /flashcards; note edits and answers are saved to the
- * server, which runs FSRS. TEMPORARY: deck changes stay in memory until their endpoints exist, so
- * they're lost on the next refresh or when the app closes.
+ * server, which runs FSRS. Decks are created and changed on the server directly, not from the app.
  */
 class NetworkFlashcardRepository(
     private val api: MonkeyFuryApi,
@@ -36,6 +35,12 @@ class NetworkFlashcardRepository(
 
     private val _decks = MutableStateFlow<List<Deck>>(emptyList())
     override val decks: StateFlow<List<Deck>> = _decks.asStateFlow()
+
+    private val _reviewDays = MutableStateFlow<Map<String, Map<LocalDate, Int>>>(emptyMap())
+    override val reviewDays: StateFlow<Map<String, Map<LocalDate, Int>>> = _reviewDays.asStateFlow()
+
+    private val _dueCounts = MutableStateFlow(DueCounts())
+    override val dueCounts: StateFlow<DueCounts> = _dueCounts.asStateFlow()
 
     private val notes = mutableListOf<Note>()
     private val cards = mutableListOf<Card>()
@@ -59,28 +64,11 @@ class NetworkFlashcardRepository(
             loadedDayStart = dayStart
             introducedSinceLoad.clear()
             _decks.value = data.decks
+            _reviewDays.value = data.reviewDays
+                .groupBy { it.deckId }
+                .mapValues { (_, days) -> days.associate { LocalDate.parse(it.date) to it.count } }
+            updateDueCounts()
         }
-    }
-
-    override suspend fun createDeck(params: DeckParams): Deck = mutex.withLock {
-        val now = System.currentTimeMillis()
-        val p = params.validated()
-        val deck = Deck(newId(), p.name, p.description, createdAt = now, updatedAt = now)
-        _decks.value += deck
-        deck
-    }
-
-    override suspend fun updateDeck(id: String, params: DeckParams): Deck = mutex.withLock {
-        val p = params.validated()
-        val updated = deck(id).copy(name = p.name, description = p.description, updatedAt = System.currentTimeMillis())
-        _decks.value = _decks.value.map { if (it.publicId == id) updated else it }
-        updated
-    }
-
-    override suspend fun deleteDeck(id: String) = mutex.withLock {
-        deck(id)
-        notes.filter { it.deckId == id }.forEach { removeNote(it.publicId) }
-        _decks.value = _decks.value.filterNot { it.publicId == id }
     }
 
     override suspend fun getNotes(deckId: String): List<Note> = mutex.withLock {
@@ -90,19 +78,28 @@ class NetworkFlashcardRepository(
 
     override suspend fun createNote(deckId: String, params: NoteParams): Note {
         val result = api.createNote(deckId, params.validated()).bodyOrThrow()
-        mutex.withLock { store(result) }
+        mutex.withLock {
+            store(result)
+            updateDueCounts()
+        }
         return result.note
     }
 
     override suspend fun updateNote(id: String, params: NoteParams): Note {
         val result = api.updateNote(id, params.validated()).bodyOrThrow()
-        mutex.withLock { store(result) }
+        mutex.withLock {
+            store(result)
+            updateDueCounts()
+        }
         return result.note
     }
 
     override suspend fun deleteNote(id: String) {
         api.deleteNote(id).checkSuccess()
-        mutex.withLock { removeNote(id) }
+        mutex.withLock {
+            removeNote(id)
+            updateDueCounts()
+        }
     }
 
     override suspend fun getDueCards(deckId: String?, now: Long): List<StudyCard> = mutex.withLock {
@@ -125,6 +122,13 @@ class NetworkFlashcardRepository(
             val before = cards.find { it.publicId == cardId }
             if (before?.state == CardState.NEW) introducedSinceLoad += now
             cards.replaceAll { if (it.publicId == cardId) updated else it }
+            // Count the answer on today's square without refetching
+            notes.find { it.publicId == updated.noteId }?.deckId?.let { deckId ->
+                val today = Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
+                val days = _reviewDays.value[deckId].orEmpty()
+                _reviewDays.value += deckId to (days + (today to (days[today] ?: 0) + 1))
+            }
+            updateDueCounts()
         }
         return updated
     }
@@ -137,9 +141,18 @@ class NetworkFlashcardRepository(
         loadedDayStart = 0L
         introducedSinceLoad.clear()
         _decks.value = emptyList()
+        _dueCounts.value = DueCounts()
+        _reviewDays.value = emptyMap()
     }
 
     // Callers hold the mutex, except clear, which empties everything at once
+
+    private fun updateDueCounts(now: Long = System.currentTimeMillis()) {
+        _dueCounts.value = DueCounts(
+            byDeck = _decks.value.associate { it.publicId to dueCards(candidates(it.publicId), now).size },
+            total = dueCards(candidates(null), now).size
+        )
+    }
 
     /** The deck's cards, or every deck's when [deckId] is null. */
     private fun candidates(deckId: String?): List<Card> {
@@ -197,14 +210,6 @@ class NetworkFlashcardRepository(
 
     private fun startOfDay(now: Long) =
         Instant.ofEpochMilli(now).atZone(zone).toLocalDate().atStartOfDay(zone).toInstant().toEpochMilli()
-
-    private fun newId() = UUID.randomUUID().toString()
-
-    private fun DeckParams.validated(): DeckParams {
-        val name = name.trim()
-        require(name.isNotEmpty()) { "Deck name is required" }
-        return DeckParams(name, description.trim())
-    }
 
     private fun <T> Response<T>.bodyOrThrow(): T {
         checkSuccess()

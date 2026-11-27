@@ -26,10 +26,11 @@ data class Deck(
     val updatedAt: Long
 )
 
-@Serializable
-data class DeckParams(
-    val name: String,
-    val description: String = ""
+/** How many cards are due now, as a study session would show them. */
+data class DueCounts(
+    val byDeck: Map<String, Int> = emptyMap(),
+    /** Across every deck. Not the sum of [byDeck], since the daily new-card limit is shared. */
+    val total: Int = 0
 )
 
 /** What you write. A reversible note is studied as two cards, front→back and back→front. */
@@ -98,7 +99,17 @@ data class FlashcardData(
     val notes: List<Note>,
     val cards: List<Card>,
     /** Never-studied cards answered for the first time today, in the zone the app sent. */
-    val newCardsToday: Int = 0
+    val newCardsToday: Int = 0,
+    /** Answers per deck per day this month, in the zone the app sent; days without any are left out. */
+    val reviewDays: List<ReviewDay> = emptyList()
+)
+
+/** How many answers were given to a deck's cards on [date] (yyyy-MM-dd). */
+@Serializable
+data class ReviewDay(
+    val deckId: String,
+    val date: String,
+    val count: Int
 )
 
 /** The body of POST /cards/{id}/answer. */

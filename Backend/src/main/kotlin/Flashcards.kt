@@ -9,16 +9,14 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import java.time.DateTimeException
-import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZoneOffset
-import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 fun Application.configureFlashcards() {
     routing {
         authenticate("session") {
-            // ?zone=America/Chicago sets where "today" begins for the new-card count; UTC when left out
+            // ?zone=America/Chicago sets where days begin, for the new-card count and the review calendar; UTC when left out
             get("/flashcards") {
                 val zone = call.request.queryParameters["zone"]?.let {
                     try {
@@ -27,8 +25,7 @@ fun Application.configureFlashcards() {
                         throw BadRequestException("Unknown time zone '$it'")
                     }
                 } ?: ZoneOffset.UTC
-                val startOfToday = LocalDate.now(zone).atStartOfDay(zone).toInstant().toEpochMilli()
-                call.respond(listFlashcards(call.userPublicId(), Instant.fromEpochMilliseconds(startOfToday)))
+                call.respond(listFlashcards(call.userPublicId(), zone))
             }
 
             post("/cards/{id}/answer") {

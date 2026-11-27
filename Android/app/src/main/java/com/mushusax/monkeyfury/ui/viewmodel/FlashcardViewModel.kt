@@ -7,6 +7,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.mushusax.monkeyfury.MonkeyFuryApplication
 import com.mushusax.monkeyfury.data.Deck
+import com.mushusax.monkeyfury.data.DueCounts
 import com.mushusax.monkeyfury.data.Note
 import com.mushusax.monkeyfury.data.NoteParams
 import com.mushusax.monkeyfury.data.Rating
@@ -24,6 +25,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 
 /**
  * One study session on a deck. [card] is the card showing, or null once there's nothing left:
@@ -44,6 +46,12 @@ data class StudySession(
 class FlashcardViewModel(private val flashcardRepository: FlashcardRepository) : ViewModel() {
 
     val decks: StateFlow<List<Deck>> = flashcardRepository.decks
+
+    /** Answers per day this month, by deck id, for the review calendar. */
+    val reviewDays: StateFlow<Map<String, Map<LocalDate, Int>>> = flashcardRepository.reviewDays
+
+    /** Cards due now in each deck, for the deck picker. */
+    val dueCounts: StateFlow<DueCounts> = flashcardRepository.dueCounts
 
     private val selectedDeckId = MutableStateFlow<String?>(null)
 
@@ -86,13 +94,15 @@ class FlashcardViewModel(private val flashcardRepository: FlashcardRepository) :
         }
     }
 
+    /** Ignored while studying; the screen locks the deck picker until Stop. */
     fun selectDeck(deck: Deck) {
-        stopStudy()
+        if (_session.value != null) return
         selectedDeckId.value = deck.publicId
     }
 
+    /** Ignored while studying; the screen locks the pencil until Stop. */
     fun startEditing() {
-        stopStudy()
+        if (_session.value != null) return
         _editing.value = true
     }
 

@@ -19,6 +19,8 @@ import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 import kotlin.time.Clock
 import kotlin.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 import kotlin.uuid.Uuid
 
 // FSRS flashcards: a deck holds notes (what you write); each note is studied as one card per
@@ -129,7 +131,17 @@ data class FlashcardData(
     val notes: List<Note>,
     val cards: List<Card>,
     /** Never-studied cards answered for the first time since the start of today, in the zone asked for. */
-    val newCardsToday: Int = 0
+    val newCardsToday: Int = 0,
+    /** Answers per deck per day this month, in the zone asked for; days without any are left out. */
+    val reviewDays: List<ReviewDay> = emptyList()
+)
+
+/** How many answers were given to a deck's cards on [date] (yyyy-MM-dd). */
+@Serializable
+data class ReviewDay(
+    val deckId: Uuid,
+    val date: String,
+    val count: Int
 )
 
 /** The body of POST /cards/{id}/answer. */
@@ -195,8 +207,12 @@ private fun cardToModel(row: ResultRow, notePublicId: Uuid) = Card(
     updatedAt = row[CardsTable.updatedAt].toEpochMilliseconds()
 )
 
-/** [startOfToday] is when the user's day began, for counting [FlashcardData.newCardsToday]. */
-suspend fun listFlashcards(userPublicId: Uuid, startOfToday: Instant): FlashcardData = withTransaction {
+/** [zone] decides where today and this month begin, for [FlashcardData.newCardsToday] and [FlashcardData.reviewDays]. */
+suspend fun listFlashcards(userPublicId: Uuid, zone: ZoneId): FlashcardData = withTransaction {
+    val today = LocalDate.now(zone)
+    val startOfToday = Instant.fromEpochMilliseconds(today.atStartOfDay(zone).toInstant().toEpochMilli())
+    val startOfMonth = Instant.fromEpochMilliseconds(today.withDayOfMonth(1).atStartOfDay(zone).toInstant().toEpochMilli())
+
     val deckRows = DecksTable.selectAll()
         .where { DecksTable.userPublicId eq userPublicId }
         .orderBy(DecksTable.name)
@@ -227,9 +243,24 @@ suspend fun listFlashcards(userPublicId: Uuid, startOfToday: Instant): Flashcard
         decks = deckRows.map(::deckToModel),
         notes = noteRows.map { noteToModel(it, deckIds.getValue(it[NotesTable.deckId])) },
         cards = cardRows.map { cardToModel(it, noteIds.getValue(it[CardsTable.noteId])) },
-        newCardsToday = newCardsToday.toInt()
+        newCardsToday = newCardsToday.toInt(),
+        reviewDays = reviewDays(userPublicId, zone, startOfMonth)
     )
 }
+
+/** Counts the user's answers since [since] per deck per day, grouping by the day in [zone]. */
+private fun reviewDays(userPublicId: Uuid, zone: ZoneId, since: Instant): List<ReviewDay> =
+    (ReviewLogsTable innerJoin CardsTable innerJoin NotesTable innerJoin DecksTable)
+        .select(DecksTable.publicId, ReviewLogsTable.reviewedAt)
+        .where { (DecksTable.userPublicId eq userPublicId) and (ReviewLogsTable.reviewedAt greaterEq since) }
+        .groupingBy {
+            val day = java.time.Instant.ofEpochMilli(it[ReviewLogsTable.reviewedAt].toEpochMilliseconds())
+                .atZone(zone).toLocalDate()
+            it[DecksTable.publicId] to day
+        }
+        .eachCount()
+        .map { (key, count) -> ReviewDay(deckId = key.first, date = key.second.toString(), count = count) }
+        .sortedWith(compareBy({ it.date }, { it.deckId.toString() }))
 
 private val scheduler = FsrsScheduler()
 

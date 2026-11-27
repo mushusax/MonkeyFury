@@ -2,23 +2,29 @@ package com.mushusax.monkeyfury.data.repository
 
 import com.mushusax.monkeyfury.data.Card
 import com.mushusax.monkeyfury.data.Deck
-import com.mushusax.monkeyfury.data.DeckParams
+import com.mushusax.monkeyfury.data.DueCounts
 import com.mushusax.monkeyfury.data.Note
 import com.mushusax.monkeyfury.data.NoteParams
 import com.mushusax.monkeyfury.data.Rating
 import com.mushusax.monkeyfury.data.StudyCard
 import kotlinx.coroutines.flow.StateFlow
+import java.time.LocalDate
 
 /** Decks, notes and the cards studied from them. Unknown ids and blank text throw IllegalArgumentException. */
 interface FlashcardRepository {
-    /** The latest deck list, shared by every screen; updated by [refreshDecks] and edits. */
+    /** The latest deck list, shared by every screen; updated by [refreshDecks]. */
     val decks: StateFlow<List<Deck>>
 
+    /**
+     * Due cards per deck and in total; updated by [refreshDecks], edits and answers. Cards that
+     * come due as time passes are only counted at the next of those.
+     */
+    val dueCounts: StateFlow<DueCounts>
+
+    /** Answers per day this month, by deck id; updated by [refreshDecks] and answers. */
+    val reviewDays: StateFlow<Map<String, Map<LocalDate, Int>>>
+
     suspend fun refreshDecks()
-    suspend fun createDeck(params: DeckParams): Deck
-    suspend fun updateDeck(id: String, params: DeckParams): Deck
-    /** Deletes the deck with its notes, cards and review history. */
-    suspend fun deleteDeck(id: String)
 
     suspend fun getNotes(deckId: String): List<Note>
     /** Creates the note's card, plus a reverse card when the note is reversible. */

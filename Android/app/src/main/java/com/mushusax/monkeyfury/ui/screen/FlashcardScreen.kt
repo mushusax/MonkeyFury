@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -58,19 +59,31 @@ import com.mushusax.monkeyfury.data.Note
 import com.mushusax.monkeyfury.data.Rating
 import com.mushusax.monkeyfury.data.answerRatings
 import com.mushusax.monkeyfury.ui.component.ActivityWallpaper
+import com.mushusax.monkeyfury.ui.component.CalendarHeatMap
 import com.mushusax.monkeyfury.ui.component.ContentPanel
 import com.mushusax.monkeyfury.ui.component.NoteEditDialog
 import com.mushusax.monkeyfury.ui.component.edit
 import com.mushusax.monkeyfury.ui.viewmodel.FlashcardViewModel
 import com.mushusax.monkeyfury.ui.viewmodel.StudySession
 import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.YearMonth
+import java.time.format.DateTimeFormatter
 
 /** The Start and Reveal buttons' fill; Material 3 has no green, so it is set here. */
 private val StartGreen = Color(0xFF2E7D32)
 
 /** Black panels with white text, matching ContentPanel and the Dashboard buttons. */
 @Composable
-private fun blackCardColors() = CardDefaults.elevatedCardColors(containerColor = Color.Black, contentColor = Color.White)
+private fun blackCardColors() = CardDefaults.elevatedCardColors(
+    containerColor = Color.Black,
+    contentColor = Color.White,
+    // Stays black when disabled, with dimmed text, instead of switching to the theme's grey
+    disabledContainerColor = Color.Black,
+    disabledContentColor = Color.White.copy(alpha = 0.38f)
+)
+
+private val MONTH_YEAR_FORMATTER = DateTimeFormatter.ofPattern("MMMM yyyy")
 
 /** Height of the deck picker row and the study buttons; the pencil and Stop are squares of this size. */
 private val ControlSize = 64.dp
@@ -92,6 +105,8 @@ fun FlashcardScreen(
     val loading by viewModel.loading.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
     val session by viewModel.session.collectAsStateWithLifecycle()
+    val dueCounts by viewModel.dueCounts.collectAsStateWithLifecycle()
+    val reviewDays by viewModel.reviewDays.collectAsStateWithLifecycle()
     val revealed by viewModel.revealed.collectAsStateWithLifecycle()
 
     var deckSheetOpen by remember { mutableStateOf(false) }
@@ -143,9 +158,12 @@ fun FlashcardScreen(
             } else {
                 DeckPickerRow(
                     deckName = deck?.name ?: "No decks yet",
+                    dueCount = deck?.let { dueCounts.byDeck[it.publicId] },
                     arrowRotation = arrowRotation,
                     onPickDeck = { deckSheetOpen = true },
-                    onEdit = if (deck != null) viewModel::startEditing else null
+                    onEdit = if (deck != null) viewModel::startEditing else null,
+                    // Locked while studying, so the deck and its cards can't change under the session
+                    enabled = session == null
                 )
 
                 // Fills the rest of the screen, with the deck row's side margins and the same
@@ -156,7 +174,9 @@ fun FlashcardScreen(
                         .fillMaxWidth()
                         .padding(start = 32.dp, end = 32.dp, top = 16.dp),
                     session = session,
-                    revealed = revealed
+                    revealed = revealed,
+                    // Null with no deck, so there's no calendar for nothing
+                    reviewDays = deck?.let { reviewDays[it.publicId].orEmpty() }
                 )
 
                 // Same margins and 16dp gap as the buttons above
@@ -195,6 +215,7 @@ fun FlashcardScreen(
     if (deckSheetOpen) {
         DeckSheet(
             decks = decks,
+            dueCounts = dueCounts.byDeck,
             selectedDeck = selectedDeck,
             onDeckSelected = viewModel::selectDeck,
             onDismiss = { deckSheetOpen = false }
@@ -224,13 +245,18 @@ fun FlashcardScreen(
     }
 }
 
-/** The deck card, which opens the deck sheet, and the pencil, shown only when [onEdit] is set. */
+/**
+ * The deck card, which opens the deck sheet, and the pencil, shown only when [onEdit] is set.
+ * [dueCount] is how many of the deck's cards are due; null when there's no deck.
+ */
 @Composable
 private fun DeckPickerRow(
     deckName: String,
+    dueCount: Int?,
     arrowRotation: Float,
     onPickDeck: () -> Unit,
-    onEdit: (() -> Unit)?
+    onEdit: (() -> Unit)?,
+    enabled: Boolean
 ) {
     // 32dp side margins line the row up with the outer edges of the buttons below.
     Row(
@@ -244,6 +270,7 @@ private fun DeckPickerRow(
             modifier = Modifier.weight(1f),
             shape = RoundedCornerShape(16.dp),
             colors = blackCardColors(),
+            enabled = enabled,
             onClick = onPickDeck
         ) {
             Row(
@@ -257,6 +284,10 @@ private fun DeckPickerRow(
                     text = deckName,
                     style = MaterialTheme.typography.titleSmall
                 )
+                if (dueCount != null) {
+                    DueCount(count = dueCount)
+                    Spacer(modifier = Modifier.width(16.dp))
+                }
                 Icon(
                     modifier = Modifier.rotate(arrowRotation),
                     painter = painterResource(id = R.drawable.ic_arrow),
@@ -273,8 +304,11 @@ private fun DeckPickerRow(
                 // Same colors as the + buttons here and on Activity List
                 colors = CardDefaults.elevatedCardColors(
                     containerColor = FloatingActionButtonDefaults.containerColor,
-                    contentColor = contentColorFor(FloatingActionButtonDefaults.containerColor)
+                    contentColor = contentColorFor(FloatingActionButtonDefaults.containerColor),
+                    disabledContainerColor = FloatingActionButtonDefaults.containerColor,
+                    disabledContentColor = contentColorFor(FloatingActionButtonDefaults.containerColor).copy(alpha = 0.38f)
                 ),
+                enabled = enabled,
                 onClick = onEdit
             ) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -287,10 +321,15 @@ private fun DeckPickerRow(
 
 /**
  * The studied card: its prompt, and its answer once [revealed]. Says so when the session has run
- * out of cards; blank when not studying.
+ * out of cards. When not studying, the deck's reviews this month, when there's a deck.
  */
 @Composable
-private fun StudyArea(modifier: Modifier, session: StudySession?, revealed: Boolean) {
+private fun StudyArea(
+    modifier: Modifier,
+    session: StudySession?,
+    revealed: Boolean,
+    reviewDays: Map<LocalDate, Int>?
+) {
     val card = session?.card
     ElevatedCard(modifier = modifier, shape = RoundedCornerShape(16.dp), colors = blackCardColors()) {
         Column(
@@ -300,6 +339,9 @@ private fun StudyArea(modifier: Modifier, session: StudySession?, revealed: Bool
             verticalArrangement = Arrangement.spacedBy(24.dp, Alignment.CenterVertically),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            if (session == null && reviewDays != null) {
+                ReviewCalendar(reviewDays)
+            }
             if (session != null && card == null) {
                 Text(
                     text = if (session.ahead) "You've studied every card in this deck" else "All caught up",
@@ -492,6 +534,7 @@ private fun NoteRow(note: Note, onClick: () -> Unit) {
 @Composable
 private fun DeckSheet(
     decks: List<Deck>,
+    dueCounts: Map<String, Int>,
     selectedDeck: Deck?,
     onDeckSelected: (Deck) -> Unit,
     onDismiss: () -> Unit
@@ -503,7 +546,7 @@ private fun DeckSheet(
         LazyColumn(contentPadding = PaddingValues(bottom = 16.dp)) {
             items(items = decks, key = { it.publicId }) { deck ->
                 val selected = deck.publicId == selectedDeck?.publicId
-                Text(
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
@@ -512,14 +555,56 @@ private fun DeckSheet(
                             scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
                         }
                         .padding(horizontal = 24.dp, vertical = 16.dp),
-                    text = deck.name,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = if (selected) FontWeight.Bold else null,
-                    color = if (selected) MaterialTheme.colorScheme.primary else Color.Unspecified
-                )
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        modifier = Modifier.weight(1f),
+                        text = deck.name,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = if (selected) FontWeight.Bold else null,
+                        color = if (selected) MaterialTheme.colorScheme.primary else Color.Unspecified
+                    )
+                    DueCount(count = dueCounts[deck.publicId] ?: 0)
+                }
             }
         }
     }
+}
+
+/** The deck's answers per day this month as a heat map, the busiest day fullest. */
+@Composable
+private fun ReviewCalendar(reviewDays: Map<LocalDate, Int>) {
+    val month = YearMonth.now()
+    val monthDays = reviewDays.filterKeys { YearMonth.from(it) == month }
+    val total = monthDays.values.sum()
+    val busiest = monthDays.values.maxOrNull()?.coerceAtLeast(1) ?: 1
+    Column(
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(text = month.format(MONTH_YEAR_FORMATTER), style = MaterialTheme.typography.titleMedium)
+        CalendarHeatMap(
+            values = monthDays.mapValues { it.value.toFloat() },
+            month = month,
+            intensity = { it / busiest },
+            valueLabel = { count -> if (count.toInt() == 1) "1 review" else "${count.toInt()} reviews" }
+        )
+        Text(
+            text = if (total == 1) "1 review this month" else "$total reviews this month",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+/** "N due", dimmed when nothing is due. */
+@Composable
+private fun DueCount(count: Int) {
+    Text(
+        text = "$count due",
+        style = MaterialTheme.typography.labelLarge,
+        color = if (count > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+    )
 }
 
 @Preview(showSystemUi = true, showBackground = true)

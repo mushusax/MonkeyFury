@@ -10,7 +10,11 @@ import com.mushusax.monkeyfury.data.User
 import com.mushusax.monkeyfury.data.repository.ActivityRepository
 import com.mushusax.monkeyfury.data.repository.FlashcardRepository
 import com.mushusax.monkeyfury.data.repository.UserRepository
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class DashboardViewModel(
@@ -20,6 +24,24 @@ class DashboardViewModel(
 ) : ViewModel() {
 
     val currentUser: StateFlow<User?> = userRepository.currentUser
+
+    /** Cards due across every deck, for the Flashcard button's badge. */
+    val dueCardCount: StateFlow<Int> = flashcardRepository.dueCounts
+        .map { it.total }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, flashcardRepository.dueCounts.value.total)
+
+    init {
+        viewModelScope.launch {
+            try {
+                flashcardRepository.refreshDecks()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // The badge is a hint; the Flashcard screen loads again and handles failures
+            }
+        }
+    }
+
     fun logOut() {
         viewModelScope.launch {
             userRepository.logout()
