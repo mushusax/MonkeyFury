@@ -179,13 +179,16 @@ private fun MediaDAO.setFrom(valid: MediaParams) {
     updatedAt = Clock.System.now()
 }
 
+/** What the day's log row holds for [dao], 0 when there's no row. */
+private fun loggedOn(dao: MediaDAO, date: LocalDate): Int =
+    MediaProgressLogTable.selectAll()
+        .where { (MediaProgressLogTable.mediaId eq dao.id) and (MediaProgressLogTable.date eq date) }
+        .singleOrNull()?.get(MediaProgressLogTable.amount) ?: 0
+
 /** Adds [amount] to the day's log row, removing the row when nothing is left in it. */
 private fun addToLog(dao: MediaDAO, date: LocalDate, amount: Int) {
     if (amount == 0) return
-    val existing = MediaProgressLogTable.selectAll()
-        .where { (MediaProgressLogTable.mediaId eq dao.id) and (MediaProgressLogTable.date eq date) }
-        .singleOrNull()?.get(MediaProgressLogTable.amount) ?: 0
-    val newAmount = existing + amount
+    val newAmount = loggedOn(dao, date) + amount
     if (newAmount <= 0) {
         MediaProgressLogTable.deleteWhere {
             (MediaProgressLogTable.mediaId eq dao.id) and (MediaProgressLogTable.date eq date)
@@ -251,7 +254,7 @@ suspend fun updateMedia(userPublicId: Uuid, mediaId: Uuid, params: MediaParams):
 /**
  * Logs pages or episodes on [ProgressParams.date] and moves the status along: logging on something
  * Planned or On Hold starts it, reaching the total completes it, and undoing below the total reopens it.
- * Returns null when the item isn't found.
+ * A negative amount takes back at most what was logged on that day. Returns null when the item isn't found.
  */
 suspend fun logProgress(userPublicId: Uuid, mediaId: Uuid, params: ProgressParams): Media? {
     require(params.amount != 0 && params.amount in -MAX_TOTAL..MAX_TOTAL) { "Amount must be a nonzero count" }
@@ -259,8 +262,10 @@ suspend fun logProgress(userPublicId: Uuid, mediaId: Uuid, params: ProgressParam
         val dao = findOwned(userPublicId, mediaId) ?: return@withTransaction null
         require(dao.kind != MediaKind.MOVIE) { "Movies have no progress; mark them completed instead" }
 
+        // Undoing only takes back what was logged that day, so progress and the heat map stay in step
+        val amount = if (params.amount < 0) maxOf(params.amount, -loggedOn(dao, params.date)) else params.amount
         val before = dao.progress
-        val after = (before + params.amount).coerceIn(0, dao.total ?: Int.MAX_VALUE)
+        val after = (before + amount).coerceIn(0, dao.total ?: Int.MAX_VALUE)
         if (after == before) return@withTransaction daoToModel(dao)
         dao.progress = after
         addToLog(dao, params.date, after - before)

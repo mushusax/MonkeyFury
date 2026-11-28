@@ -1,6 +1,8 @@
 package com.mushusax.monkeyfury.ui.component
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -8,19 +10,26 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -31,7 +40,9 @@ import com.mushusax.monkeyfury.data.MediaStatus
 import com.mushusax.monkeyfury.data.creatorLabel
 import com.mushusax.monkeyfury.data.hasProgress
 import com.mushusax.monkeyfury.data.progressLabel
+import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
 private const val MAX_TITLE = 200
@@ -45,8 +56,8 @@ private val RATINGS: List<Pair<Boolean?, String>> = listOf(null to "—", true t
 
 /**
  * Creates an item when [media] is null, otherwise edits it. New items start as [initialKind].
- * Start and finish dates fill in from the status: leaving Planned starts it today, and Completed
- * finishes it today. [onArchive] shows a Remove button when set.
+ * Empty start and finish dates fill in from the status (leaving Planned starts it today, and
+ * Completed finishes it today) and can then be picked or cleared. [onArchive] shows a Remove button when set.
  */
 @Composable
 fun MediaEditDialog(
@@ -65,12 +76,18 @@ fun MediaEditDialog(
     var total by remember { mutableStateOf(media?.total?.toString() ?: "") }
     var thumbsUp by remember { mutableStateOf(media?.thumbsUp) }
     var notes by remember { mutableStateOf(media?.notes ?: "") }
+    var startedOn by remember { mutableStateOf(media?.startedOn?.let(LocalDate::parse)) }
+    var finishedOn by remember { mutableStateOf(media?.finishedOn?.let(LocalDate::parse)) }
 
     val parsedTotal = total.trim().toIntOrNull()
     val totalError = total.isNotBlank() && (parsedTotal == null || parsedTotal !in 1..MAX_TOTAL)
     val parsedProgress = if (progress.isBlank()) 0 else progress.trim().toIntOrNull()
     val progressError = parsedProgress == null || (parsedTotal != null && parsedProgress > parsedTotal)
-    val canSave = title.isNotBlank() && (!kind.hasProgress || (!totalError && !progressError)) && !saving
+    // A movie is just watched, so only books and anime get a start day, and only completed items a finish day
+    val showStarted = kind.hasProgress
+    val showFinished = status == MediaStatus.COMPLETED
+    val datesError = showStarted && showFinished && startedOn != null && finishedOn != null && startedOn!! > finishedOn!!
+    val canSave = title.isNotBlank() && (!kind.hasProgress || (!totalError && !progressError)) && !datesError && !saving
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -116,6 +133,9 @@ fun MediaEditDialog(
                         val chosen = MediaStatus.entries.first { it.label == label }
                         // Most things finished are liked, so completing starts at thumbs up
                         if (chosen == MediaStatus.COMPLETED && thumbsUp == null) thumbsUp = true
+                        val today = LocalDate.now()
+                        if (chosen == MediaStatus.COMPLETED && finishedOn == null) finishedOn = today
+                        if (chosen != MediaStatus.PLANNED && startedOn == null) startedOn = finishedOn ?: today
                         status = chosen
                     }
                 )
@@ -171,16 +191,34 @@ fun MediaEditDialog(
                     minLines = 2
                 )
 
-                val dates = listOfNotNull(
-                    media?.startedOn?.let { "Started ${LocalDate.parse(it).format(DATE_FORMAT)}" },
-                    media?.finishedOn?.let { "Finished ${LocalDate.parse(it).format(DATE_FORMAT)}" }
-                )
-                if (dates.isNotEmpty()) {
-                    Text(
-                        text = dates.joinToString(" · "),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                if (showStarted || showFinished) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        if (showStarted) {
+                            DateField(
+                                modifier = Modifier.weight(1f),
+                                label = "Started",
+                                date = startedOn,
+                                isError = datesError,
+                                onDateChange = { startedOn = it }
+                            )
+                        }
+                        if (showFinished) {
+                            DateField(
+                                modifier = Modifier.weight(1f),
+                                label = "Finished",
+                                date = finishedOn,
+                                isError = datesError,
+                                onDateChange = { finishedOn = it }
+                            )
+                        }
+                    }
+                    if (datesError) {
+                        Text(
+                            text = "Can't finish before it started",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
 
                 if (onArchive != null) {
@@ -194,14 +232,6 @@ fun MediaEditDialog(
             TextButton(
                 enabled = canSave,
                 onClick = {
-                    val today = LocalDate.now().toString()
-                    val finishedOn = if (status == MediaStatus.COMPLETED) media?.finishedOn ?: today else null
-                    // A movie is just watched, so only books and anime get a start day
-                    val startedOn = when {
-                        !kind.hasProgress -> null
-                        status == MediaStatus.PLANNED -> media?.startedOn
-                        else -> media?.startedOn ?: finishedOn ?: today
-                    }
                     onSave(
                         MediaParams(
                             kind = kind,
@@ -211,8 +241,8 @@ fun MediaEditDialog(
                             progress = if (kind.hasProgress) parsedProgress ?: 0 else 0,
                             total = if (kind.hasProgress) parsedTotal else null,
                             thumbsUp = thumbsUp,
-                            startedOn = startedOn,
-                            finishedOn = finishedOn,
+                            startedOn = startedOn?.takeIf { showStarted }?.toString(),
+                            finishedOn = finishedOn?.takeIf { showFinished }?.toString(),
                             notes = notes.trim()
                         )
                     )
@@ -223,6 +253,81 @@ fun MediaEditDialog(
             TextButton(onClick = onDismiss) { Text("Cancel") }
         }
     )
+}
+
+/** Days after today can't be picked, since nothing can be started or finished in the future. */
+@OptIn(ExperimentalMaterial3Api::class)
+private object PastOrToday : SelectableDates {
+    override fun isSelectableDate(utcTimeMillis: Long): Boolean = utcTimeMillis.toLocalDate() <= LocalDate.now()
+    override fun isSelectableYear(year: Int): Boolean = year <= LocalDate.now().year
+}
+
+/** The date picker works in UTC midnights, so convert there and back without a time zone shift. */
+private fun Long.toLocalDate(): LocalDate = Instant.ofEpochMilli(this).atZone(ZoneOffset.UTC).toLocalDate()
+private fun LocalDate.toUtcMillis(): Long = atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+
+/** A read-only field that opens a date picker when tapped; the picker's Clear empties it. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DateField(
+    label: String,
+    date: LocalDate?,
+    isError: Boolean,
+    onDateChange: (LocalDate?) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var picking by remember { mutableStateOf(false) }
+
+    Box(modifier = modifier) {
+        OutlinedTextField(
+            modifier = Modifier.fillMaxWidth(),
+            value = date?.format(DATE_FORMAT) ?: "",
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(label) },
+            placeholder = { Text("—") },
+            isError = isError,
+            singleLine = true
+        )
+        // A read-only text field swallows taps, so a cover over it catches them instead
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .clickable(onClickLabel = "Pick ${label.lowercase()} date") { picking = true }
+                // The cover hides the field from screen readers, so it reads the date out itself
+                .semantics { contentDescription = "$label: ${date?.format(DATE_FORMAT) ?: "not set"}" }
+        )
+    }
+
+    if (picking) {
+        val state = rememberDatePickerState(
+            initialSelectedDateMillis = date?.toUtcMillis(),
+            selectableDates = PastOrToday
+        )
+        DatePickerDialog(
+            onDismissRequest = { picking = false },
+            confirmButton = {
+                TextButton(
+                    enabled = state.selectedDateMillis != null,
+                    onClick = {
+                        onDateChange(state.selectedDateMillis?.toLocalDate())
+                        picking = false
+                    }
+                ) { Text("OK") }
+            },
+            dismissButton = {
+                Row {
+                    TextButton(onClick = {
+                        onDateChange(null)
+                        picking = false
+                    }) { Text("Clear") }
+                    TextButton(onClick = { picking = false }) { Text("Cancel") }
+                }
+            }
+        ) {
+            DatePicker(state = state)
+        }
+    }
 }
 
 /** Asks how many pages or episodes to log for [media]; a negative number undoes. */

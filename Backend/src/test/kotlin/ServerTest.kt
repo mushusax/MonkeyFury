@@ -435,6 +435,22 @@ class ServerTest {
     }
 
     @Test
+    fun `undoing takes back at most what was logged that day`() = withApp { tokenFor ->
+        val token = tokenFor("sam")
+        val book = createMedia(token, """{"kind":"BOOK","title":"Emma","progress":40,"total":300}""")
+        logProgress(token, book.publicId, 10, "2026-11-20")
+
+        // Only 10 were logged that day, so a bigger undo stops there instead of eating the hand-set 40
+        val undone = logProgress(token, book.publicId, -25, "2026-11-20")
+        assertEquals(40, undone.progress)
+        assertEquals(emptyList(), mediaLog(token))
+
+        // Nothing logged on a day means nothing to undo there
+        assertEquals(40, logProgress(token, book.publicId, -1, "2026-11-21").progress)
+        assertEquals(emptyList(), mediaLog(token))
+    }
+
+    @Test
     fun `a completed movie is logged once on the day it was finished`() = withApp { tokenFor ->
         val token = tokenFor("rosa")
         val movie = createMedia(

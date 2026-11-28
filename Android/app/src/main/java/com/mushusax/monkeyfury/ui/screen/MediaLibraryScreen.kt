@@ -1,9 +1,6 @@
 package com.mushusax.monkeyfury.ui.screen
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -17,7 +14,6 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -25,7 +21,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -35,7 +30,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -55,6 +49,7 @@ import com.mushusax.monkeyfury.ui.component.ActivityWallpaper
 import com.mushusax.monkeyfury.ui.component.ContentPanel
 import com.mushusax.monkeyfury.ui.component.LogAmountDialog
 import com.mushusax.monkeyfury.ui.component.MediaEditDialog
+import com.mushusax.monkeyfury.ui.component.RowAction
 import com.mushusax.monkeyfury.ui.viewmodel.MediaLibraryViewModel
 
 /** The kind tabs: All, then each kind. */
@@ -276,37 +271,5 @@ private fun MediaRow(
                 onLongClick = if (canLog) onAddMany else null
             )
         }
-    }
-}
-
-/** A small outlined button on the black panel; [onLongClick] opens a custom amount. */
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun RowAction(
-    text: String,
-    description: String,
-    enabled: Boolean,
-    onClick: () -> Unit,
-    onLongClick: (() -> Unit)?
-) {
-    Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = Color.Black,
-        contentColor = Color.White,
-        border = BorderStroke(1.dp, Color.White.copy(alpha = if (enabled) 0.8f else 0.3f))
-    ) {
-        Text(
-            modifier = Modifier
-                .combinedClickable(
-                    enabled = enabled,
-                    onClick = onClick,
-                    onLongClick = onLongClick,
-                    onLongClickLabel = onLongClick?.let { "Log a different amount" }
-                )
-                .semantics { contentDescription = description }
-                .padding(horizontal = 14.dp, vertical = 8.dp),
-            text = text,
-            style = MaterialTheme.typography.labelLarge
-        )
     }
 }
