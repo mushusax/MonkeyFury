@@ -9,6 +9,7 @@ ktor:
       - com.mushusax.RoutingKt.configureRouting
       - com.mushusax.ActivitiesKt.configureActivities
       - com.mushusax.FlashcardsKt.configureFlashcards
+      - com.mushusax.MediaKt.configureMedia
 
 database:
   # foreign_keys=on: SQLite only enforces foreign keys when asked to

@@ -7,8 +7,12 @@ import com.mushusax.monkeyfury.data.AnswerParams
 import com.mushusax.monkeyfury.data.Card
 import com.mushusax.monkeyfury.data.EntryValueParams
 import com.mushusax.monkeyfury.data.FlashcardData
+import com.mushusax.monkeyfury.data.Media
+import com.mushusax.monkeyfury.data.MediaLogEntry
+import com.mushusax.monkeyfury.data.MediaParams
 import com.mushusax.monkeyfury.data.NoteParams
 import com.mushusax.monkeyfury.data.NoteResult
+import com.mushusax.monkeyfury.data.ProgressParams
 import com.mushusax.monkeyfury.data.User
 import kotlinx.serialization.Serializable
 import retrofit2.Response
@@ -84,4 +88,25 @@ interface MonkeyFuryApi {
 
     @DELETE("/notes/{id}")
     suspend fun deleteNote(@Path("id") id: String): Response<Unit>
+
+    /** The library, most recently touched first. */
+    @GET("/media")
+    suspend fun getMedia(): Response<List<Media>>
+
+    @POST("/media")
+    suspend fun createMedia(@Body body: MediaParams): Response<Media>
+
+    @PUT("/media/{id}")
+    suspend fun updateMedia(@Path("id") id: String, @Body body: MediaParams): Response<Media>
+
+    @DELETE("/media/{id}")
+    suspend fun archiveMedia(@Path("id") id: String): Response<Unit>
+
+    /** Adds to progress and that day's log row; the server moves the status along. */
+    @POST("/media/{id}/progress")
+    suspend fun logProgress(@Path("id") id: String, @Body body: ProgressParams): Response<Media>
+
+    /** [from] and [to] are yyyy-MM-dd, both inclusive. */
+    @GET("/media/log")
+    suspend fun getMediaLog(@Query("from") from: String, @Query("to") to: String): Response<List<MediaLogEntry>>
 }

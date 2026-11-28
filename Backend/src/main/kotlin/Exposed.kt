@@ -4,6 +4,8 @@ import com.mushusax.model.ActivitiesTable
 import com.mushusax.model.ActivityEntriesTable
 import com.mushusax.model.CardsTable
 import com.mushusax.model.DecksTable
+import com.mushusax.model.MediaProgressLogTable
+import com.mushusax.model.MediaTable
 import com.mushusax.model.NotesTable
 import com.mushusax.model.ReviewLogsTable
 import com.mushusax.model.UsersTable
@@ -20,7 +22,8 @@ fun Application.configureExposed() {
     transaction {
         SchemaUtils.create(
             UsersTable, ActivitiesTable, ActivityEntriesTable,
-            DecksTable, NotesTable, CardsTable, ReviewLogsTable
+            DecksTable, NotesTable, CardsTable, ReviewLogsTable,
+            MediaTable, MediaProgressLogTable
         )
         // create() skips tables that already exist, so columns added later are added here
         SchemaUtils.addMissingColumnsStatements(UsersTable, ActivitiesTable).forEach { exec(it) }

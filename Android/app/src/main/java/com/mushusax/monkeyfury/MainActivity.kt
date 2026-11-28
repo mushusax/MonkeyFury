@@ -22,6 +22,8 @@ import com.mushusax.monkeyfury.ui.screen.DailyReviewScreen
 import com.mushusax.monkeyfury.ui.screen.DashboardScreen
 import com.mushusax.monkeyfury.ui.screen.FlashcardScreen
 import com.mushusax.monkeyfury.ui.screen.LoginScreen
+import com.mushusax.monkeyfury.ui.screen.MediaLibraryScreen
+import com.mushusax.monkeyfury.ui.screen.MediaStatsScreen
 import com.mushusax.monkeyfury.ui.theme.MonkeyFuryTheme
 import kotlinx.serialization.Serializable
 
@@ -43,6 +45,12 @@ class MainActivity : ComponentActivity() {
 
     @Serializable
     object Flashcard
+
+    @Serializable
+    object MediaLibrary
+
+    @Serializable
+    object MediaStats
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -99,7 +107,8 @@ class MainActivity : ComponentActivity() {
                                     .fillMaxSize(),
                                 onLogout = onLogout,
                                 onActivityTrackingClicked = onActivityTrackingClicked,
-                                onFlashcardClicked = { navController.navigate(route = Flashcard) }
+                                onFlashcardClicked = { navController.navigate(route = Flashcard) },
+                                onMediaClicked = { navController.navigate(route = MediaLibrary) }
                             )
                         }
                     }
@@ -143,6 +152,27 @@ class MainActivity : ComponentActivity() {
                             color = MaterialTheme.colorScheme.background
                         ) {
                             FlashcardScreen(modifier = Modifier.fillMaxSize())
+                        }
+                    }
+                    composable<MediaLibrary> {
+                        Surface(
+                            modifier = Modifier.fillMaxSize(),
+                            color = MaterialTheme.colorScheme.background
+                        ) {
+                            MediaLibraryScreen(
+                                modifier = Modifier.fillMaxSize(),
+                                onStatsClicked = {
+                                    navController.navigate(route = MediaStats) { launchSingleTop = true }
+                                }
+                            )
+                        }
+                    }
+                    composable<MediaStats> {
+                        Surface(
+                            modifier = Modifier.fillMaxSize(),
+                            color = MaterialTheme.colorScheme.background
+                        ) {
+                            MediaStatsScreen(modifier = Modifier.fillMaxSize())
                         }
                     }
                 }

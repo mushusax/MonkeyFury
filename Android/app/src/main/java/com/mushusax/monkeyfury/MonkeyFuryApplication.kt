@@ -5,8 +5,10 @@ import com.mushusax.monkeyfury.data.GoogleAuthClient
 import com.mushusax.monkeyfury.data.network.MonkeyFuryApi
 import com.mushusax.monkeyfury.data.repository.ActivityRepository
 import com.mushusax.monkeyfury.data.repository.FlashcardRepository
+import com.mushusax.monkeyfury.data.repository.MediaRepository
 import com.mushusax.monkeyfury.data.repository.NetworkActivityRepository
 import com.mushusax.monkeyfury.data.repository.NetworkFlashcardRepository
+import com.mushusax.monkeyfury.data.repository.NetworkMediaRepository
 import com.mushusax.monkeyfury.data.repository.NetworkUserRepository
 import com.mushusax.monkeyfury.data.repository.UserRepository
 import kotlinx.serialization.json.Json
@@ -52,5 +54,9 @@ class MonkeyFuryApplication : Application() {
 
     val flashcardRepository: FlashcardRepository by lazy {
         NetworkFlashcardRepository(api)
+    }
+
+    val mediaRepository: MediaRepository by lazy {
+        NetworkMediaRepository(api)
     }
 }

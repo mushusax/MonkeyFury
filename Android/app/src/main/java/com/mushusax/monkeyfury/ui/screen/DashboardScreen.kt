@@ -30,10 +30,12 @@ fun DashboardScreen(
     viewModel: DashboardViewModel = viewModel(factory = DashboardViewModel.Factory),
     onLogout: () -> Unit = {},
     onActivityTrackingClicked: () -> Unit = {},
-    onFlashcardClicked: () -> Unit = {}
+    onFlashcardClicked: () -> Unit = {},
+    onMediaClicked: () -> Unit = {}
 ) {
     val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
     val dueCardCount by viewModel.dueCardCount.collectAsStateWithLifecycle()
+    val inProgressMediaCount by viewModel.inProgressMediaCount.collectAsStateWithLifecycle()
     LaunchedEffect(currentUser) {
         if (currentUser == null) onLogout()
     }
@@ -69,6 +71,18 @@ fun DashboardScreen(
                     animation = R.raw.ai_brain,
                     badge = dueCardCount,
                     onClick = onFlashcardClicked
+                )
+            }
+            item {
+                DashboardButton(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(120.dp)
+                        .aspectRatio(1f)
+                        .padding(PaddingValues(16.dp)), text = "Media",
+                    animation = R.raw.flip_book_loader,
+                    badge = inProgressMediaCount,
+                    onClick = onMediaClicked
                 )
             }
             item {

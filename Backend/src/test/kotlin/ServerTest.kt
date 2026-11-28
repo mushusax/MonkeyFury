@@ -9,6 +9,9 @@ import com.mushusax.model.ReviewLogsTable
 import com.mushusax.model.CardsTable
 import com.mushusax.model.DecksTable
 import com.mushusax.model.FlashcardData
+import com.mushusax.model.Media
+import com.mushusax.model.MediaLogEntry
+import com.mushusax.model.MediaStatus
 import com.mushusax.model.NoteResult
 import com.mushusax.model.NotesTable
 import com.mushusax.model.User
@@ -382,5 +385,119 @@ class ServerTest {
             client.send(HttpMethod.Post, "/cards/${card.publicId}/answer", owner, """{"rating":"MAYBE"}""").status
         )
         assertEquals(HttpStatusCode.BadRequest, client.send(HttpMethod.Get, "/flashcards?zone=Mars/Base", owner).status)
+    }
+
+    private suspend fun ApplicationTestBuilder.createMedia(token: String, body: String): Media {
+        val created = client.send(HttpMethod.Post, "/media", token, body)
+        assertEquals(HttpStatusCode.Created, created.status)
+        return json.decodeFromString<Media>(created.bodyAsText())
+    }
+
+    private suspend fun ApplicationTestBuilder.logProgress(token: String, id: Any, amount: Int, date: String): Media {
+        val logged = client.send(HttpMethod.Post, "/media/$id/progress", token, """{"amount":$amount,"date":"$date"}""")
+        assertEquals(HttpStatusCode.OK, logged.status)
+        return json.decodeFromString<Media>(logged.bodyAsText())
+    }
+
+    private suspend fun ApplicationTestBuilder.mediaLog(token: String): List<MediaLogEntry> =
+        json.decodeFromString(client.send(HttpMethod.Get, "/media/log?from=2026-11-01&to=2026-11-30", token).bodyAsText())
+
+    @Test
+    fun `logging progress starts, adds up by day, completes, and undoes a book`() = withApp { tokenFor ->
+        val token = tokenFor("quinn")
+        val book = createMedia(token, """{"kind":"BOOK","title":" Dune ","creator":"Frank Herbert","total":100}""")
+        assertEquals("Dune", book.title)
+        assertEquals(MediaStatus.PLANNED, book.status)
+
+        val started = logProgress(token, book.publicId, 30, "2026-11-20")
+        assertEquals(MediaStatus.IN_PROGRESS, started.status)
+        assertEquals("2026-11-20", started.startedOn.toString())
+
+        logProgress(token, book.publicId, 20, "2026-11-20")
+        // Going past the total stops at the total, and only what was applied is logged
+        val done = logProgress(token, book.publicId, 80, "2026-11-21")
+        assertEquals(100, done.progress)
+        assertEquals(MediaStatus.COMPLETED, done.status)
+        assertEquals("2026-11-21", done.finishedOn.toString())
+        assertEquals(
+            mapOf("2026-11-20" to 50, "2026-11-21" to 50),
+            mediaLog(token).associate { it.date.toString() to it.amount }
+        )
+
+        val undone = logProgress(token, book.publicId, -50, "2026-11-21")
+        assertEquals(MediaStatus.IN_PROGRESS, undone.status)
+        assertNull(undone.finishedOn)
+        assertEquals(listOf("2026-11-20"), mediaLog(token).map { it.date.toString() })
+
+        assertEquals(HttpStatusCode.NoContent, client.send(HttpMethod.Delete, "/media/${book.publicId}", token).status)
+        assertEquals("[]", client.send(HttpMethod.Get, "/media", token).bodyAsText())
+        assertEquals(emptyList(), mediaLog(token))
+    }
+
+    @Test
+    fun `a completed movie is logged once on the day it was finished`() = withApp { tokenFor ->
+        val token = tokenFor("rosa")
+        val movie = createMedia(
+            token,
+            """{"kind":"MOVIE","title":"Arrival","status":"COMPLETED","thumbsUp":true,"finishedOn":"2026-11-10","progress":5,"total":9}"""
+        )
+        assertEquals(0, movie.progress)
+        assertNull(movie.total)
+        assertEquals(true, movie.thumbsUp)
+        assertEquals(listOf("2026-11-10" to 1), mediaLog(token).map { it.date.toString() to it.amount })
+
+        // Moving the finished day moves the log row rather than adding another
+        val moved = client.send(
+            HttpMethod.Put, "/media/${movie.publicId}", token,
+            """{"kind":"MOVIE","title":"Arrival","status":"COMPLETED","finishedOn":"2026-11-12"}"""
+        )
+        assertEquals(HttpStatusCode.OK, moved.status)
+        assertEquals(listOf("2026-11-12" to 1), mediaLog(token).map { it.date.toString() to it.amount })
+
+        assertEquals(
+            HttpStatusCode.BadRequest,
+            client.send(HttpMethod.Post, "/media/${movie.publicId}/progress", token, """{"amount":1,"date":"2026-11-12"}""").status
+        )
+    }
+
+    @Test
+    fun `users cannot see or touch each other's media`() = withApp { tokenFor ->
+        val owner = tokenFor("sam")
+        val other = tokenFor("tess")
+        val anime = createMedia(owner, """{"kind":"ANIME","title":"Frieren","total":28}""")
+        logProgress(owner, anime.publicId, 1, "2026-11-25")
+
+        assertEquals("[]", client.send(HttpMethod.Get, "/media", other).bodyAsText())
+        assertEquals(emptyList(), mediaLog(other))
+        assertEquals(
+            HttpStatusCode.NotFound,
+            client.send(HttpMethod.Put, "/media/${anime.publicId}", other, """{"kind":"ANIME","title":"Mine"}""").status
+        )
+        assertEquals(
+            HttpStatusCode.NotFound,
+            client.send(HttpMethod.Post, "/media/${anime.publicId}/progress", other, """{"amount":1,"date":"2026-11-25"}""").status
+        )
+        assertEquals(HttpStatusCode.NotFound, client.send(HttpMethod.Delete, "/media/${anime.publicId}", other).status)
+    }
+
+    @Test
+    fun `bad media input is rejected with 400`() = withApp { tokenFor ->
+        val token = tokenFor("uma")
+        val bad = listOf(
+            """{"kind":"BOOK","title":"  "}""",
+            """{"kind":"BOOK","title":"A","progress":11,"total":10}""",
+            """{"kind":"BOOK","title":"A","total":0}""",
+            """{"kind":"BOOK","title":"A","startedOn":"2026-11-10","finishedOn":"2026-11-01"}""",
+            """{"kind":"PODCAST","title":"A"}"""
+        )
+        for (body in bad) assertEquals(HttpStatusCode.BadRequest, client.send(HttpMethod.Post, "/media", token, body).status, body)
+
+        val book = createMedia(token, """{"kind":"BOOK","title":"A"}""")
+        assertEquals(
+            HttpStatusCode.BadRequest,
+            client.send(HttpMethod.Post, "/media/${book.publicId}/progress", token, """{"amount":0,"date":"2026-11-01"}""").status
+        )
+        assertEquals(HttpStatusCode.BadRequest, client.send(HttpMethod.Get, "/media/log?from=2026-11-30&to=2026-11-01", token).status)
+        assertEquals(HttpStatusCode.BadRequest, client.send(HttpMethod.Put, "/media/nope", token, """{"kind":"BOOK","title":"A"}""").status)
     }
 }
